@@ -36,10 +36,23 @@ func main() {
 	configService := service.NewConfigService(db)
 	subscriptionService := service.NewSubscriptionService(db, configService)
 	certificateService := service.NewCertificateService(db)
+	authService := service.NewAuthService(db)
 	monitor := service.NewHealthMonitor(nodeService)
 	monitor.Start(ctx)
 
-	server := master.NewServer(cfg, nodeService, configService, subscriptionService, certificateService)
+	// Проверяем наличие администратора, если нет - создаём первого
+	hasAdmin, err := authService.HasAdmin(ctx)
+	if err == nil && !hasAdmin {
+		log.Println("No admin user found. Creating default admin...")
+		if err := authService.CreateAdmin(ctx, "admin", "admin"); err != nil {
+			log.Printf("Warning: Failed to create default admin: %v", err)
+		} else {
+			log.Println("Default admin created: username=admin, password=admin")
+			log.Println("⚠️  IMPORTANT: Change the default password immediately!")
+		}
+	}
+
+	server := master.NewServer(cfg, nodeService, configService, subscriptionService, certificateService, authService)
 	addr := ":" + cfg.HTTPPort
 
 	// Determine protocol

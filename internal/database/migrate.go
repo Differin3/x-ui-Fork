@@ -16,5 +16,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.UserSubscription{},
 		&model.ClientNodeStat{},
 		&model.DomainCertificate{},
+		&model.AdminUser{},
 	)
 }

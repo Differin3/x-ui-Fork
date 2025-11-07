@@ -48,10 +48,16 @@ async function handleLogin() {
   loading.value = true;
 
   try {
-    // TODO: Implement actual authentication endpoint
-    // For now, just redirect to dashboard
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    router.push('/');
+    const response = await api.post('/api/login', {
+      username: username.value,
+      password: password.value
+    });
+
+    if (response.data.success) {
+      router.push('/');
+    } else {
+      error.value = response.data.message || 'Login failed';
+    }
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Login failed';
   } finally {

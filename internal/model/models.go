@@ -149,3 +149,17 @@ type DomainCertificate struct {
 func (DomainCertificate) TableName() string {
 	return "domain_certificates"
 }
+
+type AdminUser struct {
+	ID           uint   `gorm:"primaryKey"`
+	Username     string `gorm:"size:100;uniqueIndex;not null"`
+	PasswordHash string `gorm:"size:255;not null"`
+	IsActive     bool   `gorm:"default:true"`
+	LastLogin    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (AdminUser) TableName() string {
+	return "admin_users"
+}

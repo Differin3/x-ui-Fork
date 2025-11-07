@@ -26,9 +26,10 @@ type Server struct {
 	configService       *service.ConfigService
 	subscriptionService *service.SubscriptionService
 	certificateService  *service.CertificateService
+	authService         *service.AuthService
 }
 
-func NewServer(cfg *config.MasterConfig, nodeService *service.NodeService, configService *service.ConfigService, subscriptionService *service.SubscriptionService, certificateService *service.CertificateService) *Server {
+func NewServer(cfg *config.MasterConfig, nodeService *service.NodeService, configService *service.ConfigService, subscriptionService *service.SubscriptionService, certificateService *service.CertificateService, authService *service.AuthService) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
@@ -40,6 +41,7 @@ func NewServer(cfg *config.MasterConfig, nodeService *service.NodeService, confi
 		configService:       configService,
 		subscriptionService: subscriptionService,
 		certificateService:  certificateService,
+		authService:         authService,
 	}
 
 	s.registerRoutes()
@@ -58,11 +60,17 @@ func (s *Server) registerRoutes() {
 	api := s.engine.Group("/api")
 	{
 		api.GET("/health", s.handleHealth)
+		api.POST("/login", s.handleLogin)
+		api.POST("/logout", s.handleLogout)
+		api.GET("/auth/check", s.handleAuthCheck)
+
 		api.POST("/nodes/register", s.handleRegisterNode)
 		api.GET("/nodes/:node_id/config", s.handleGetNodeConfig)
 		api.POST("/nodes/:node_id/stats", s.handleReceiveNodeStats)
 		api.GET("/subscriptions/:client_uuid", s.handleSubscriptionBundle)
+
 		admin := api.Group("/admin")
+		admin.Use(s.authMiddleware())
 		{
 			admin.GET("/dashboard", s.handleDashboard)
 			admin.GET("/nodes", s.handleListNodes)
@@ -358,6 +366,80 @@ func (s *Server) handleCheckCertificate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, info)
+}
+
+func (s *Server) handleLogin(c *gin.Context) {
+	var req service.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.respondError(c, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	resp, err := s.authService.Login(c.Request.Context(), req)
+	if err != nil {
+		s.respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !resp.Success {
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+
+	// Устанавливаем токен в cookie
+	c.SetCookie("auth_token", resp.Token, 3600*24*7, "/", "", false, true)
+	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) handleLogout(c *gin.Context) {
+	c.SetCookie("auth_token", "", -1, "/", "", false, true)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Logged out successfully"})
+}
+
+func (s *Server) handleAuthCheck(c *gin.Context) {
+	token, err := c.Cookie("auth_token")
+	if err != nil || token == "" {
+		c.JSON(http.StatusOK, gin.H{"authenticated": false})
+		return
+	}
+
+	user, err := s.authService.ValidateToken(c.Request.Context(), token)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"authenticated": false})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"authenticated": true,
+		"user":          user,
+	})
+}
+
+func (s *Server) authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token, err := c.Cookie("auth_token")
+		if err != nil || token == "" {
+			// Проверяем заголовок Authorization как альтернативу
+			authHeader := c.GetHeader("Authorization")
+			if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				token = authHeader[7:]
+			} else {
+				s.respondError(c, http.StatusUnauthorized, "authentication required")
+				c.Abort()
+				return
+			}
+		}
+
+		user, err := s.authService.ValidateToken(c.Request.Context(), token)
+		if err != nil {
+			s.respondError(c, http.StatusUnauthorized, "invalid token")
+			c.Abort()
+			return
+		}
+
+		c.Set("user", user)
+		c.Next()
+	}
 }
 
 func (s *Server) respondError(c *gin.Context, status int, message string) {

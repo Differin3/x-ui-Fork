@@ -4,14 +4,27 @@
       <slot name="title">Control Panel</slot>
     </div>
     <div class="right">
-      <button class="ghost">New Node</button>
+      <button class="ghost" @click="handleLogout">Logout</button>
       <div class="avatar">AD</div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-// presentational component
+import { useRouter } from 'vue-router';
+import { api } from '../services/api';
+
+const router = useRouter();
+
+async function handleLogout() {
+  try {
+    await api.post('/api/logout');
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout error:', error);
+    router.push('/login');
+  }
+}
 </script>
 
 <style scoped>
