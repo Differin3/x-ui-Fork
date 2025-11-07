@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue';
-import { api } from '../services/api';
+import { api, handleApiError } from '../services/api';
 
 interface DashboardStats {
   activeNodes: number;
@@ -43,6 +43,9 @@ onMounted(async () => {
     stats.traffic24h = Number(payload?.traffic_24h_gb ?? 0);
   } catch (error) {
     console.error('Failed to load dashboard data', error);
+    // TODO: Show error notification to user
+    const errorMsg = handleApiError(error);
+    console.error('Error:', errorMsg);
   }
 });
 </script>

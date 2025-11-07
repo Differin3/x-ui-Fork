@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { api } from '../services/api';
+import { api, handleApiError } from '../services/api';
 
 interface NodeGroup {
   id: number | string;
@@ -74,6 +74,9 @@ onMounted(async () => {
     nodes.value = payload;
   } catch (error) {
     console.error('Failed to load nodes', error);
+    // TODO: Show error notification to user
+    const errorMsg = handleApiError(error);
+    console.error('Error:', errorMsg);
   }
 });
 </script>

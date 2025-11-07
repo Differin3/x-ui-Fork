@@ -1,16 +1,73 @@
-.idea
-.vscode
-.cache
-.sync*
-*.tar.gz
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/bin/
+/dist/
+
+# Go
+vendor/
+*.mod.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
 *.log
-access.log
-error.log
-tmp
-main
-backup/
-bin/
-dist/
-release/
-/release.sh
-/x-ui
+*.tmp
+*.temp
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+*.sqlite
+*.sqlite3
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.eslintcache
+
+# Frontend build
+web/admin/dist/
+web/admin/.vite/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
