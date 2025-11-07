@@ -41,6 +41,17 @@ func main() {
 	server := master.NewServer(cfg, nodeService, configService, subscriptionService)
 	addr := ":" + cfg.HTTPPort
 
+	// Determine protocol
+	protocol := "http"
+	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
+		protocol = "https"
+	}
+
+	log.Printf("VPN Master Panel starting on %s%s", protocol, addr)
+	log.Printf("API available at: %s://localhost%s/api", protocol, addr)
+	log.Printf("Health check: %s://localhost%s/api/health", protocol, addr)
+	log.Printf("Admin dashboard: %s://localhost%s/api/admin/dashboard", protocol, addr)
+
 	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
 		log.Fatal(server.Engine().RunTLS(addr, cfg.TLSCertFile, cfg.TLSKeyFile))
 		return

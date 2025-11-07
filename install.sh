@@ -157,6 +157,32 @@ check_go() {
         export PATH=$PATH:/usr/local/go/bin
         echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile
     fi
+    
+    # Check for C compiler (required for CGO)
+    if ! command -v gcc &> /dev/null; then
+        echo -e "${yellow}C compiler (gcc) not found. Installing build-essential...${plain}"
+        case "${release}" in
+        ubuntu | debian | armbian)
+            apt-get install -y -q build-essential
+            ;;
+        centos | almalinux | rocky | ol)
+            yum install -y -q gcc
+            ;;
+        fedora | amzn)
+            dnf install -y -q gcc
+            ;;
+        arch | manjaro | parch)
+            pacman -Syu --noconfirm base-devel
+            ;;
+        opensuse-tumbleweed)
+            zypper -q install -y gcc
+            ;;
+        *)
+            apt-get install -y -q build-essential
+            ;;
+        esac
+    fi
+    
     echo -e "${green}Go version: $(go version)${plain}"
 }
 
@@ -166,16 +192,24 @@ install_master() {
     INSTALL_DIR="/opt/vpn-master"
     DATA_DIR="/var/lib/vpn-master"
     BIN_PATH="/usr/local/bin/vpn-master"
+    PORT="8085"
     
     mkdir -p "${INSTALL_DIR}"
     mkdir -p "${DATA_DIR}"
+    
+    # Ensure Go is in PATH
+    export PATH=$PATH:/usr/local/go/bin
+    if ! command -v go &> /dev/null; then
+        echo -e "${red}Error: Go is not found in PATH. Please run: export PATH=\$PATH:/usr/local/go/bin${plain}"
+        exit 1
+    fi
     
     # Build from source if we're in the repo, otherwise clone
     if [[ -f "${cur_dir}/go.mod" && -d "${cur_dir}/cmd/master" ]]; then
         echo -e "${green}Building from current directory...${plain}"
         cd "${cur_dir}"
         go mod download
-        go build -o "${BIN_PATH}" ./cmd/master
+        CGO_ENABLED=1 GOOS=linux GOARCH=$(go env GOARCH) go build -o "${BIN_PATH}" ./cmd/master
     else
         echo -e "${yellow}Cloning repository...${plain}"
         REPO_URL="https://github.com/Differin3/x-ui-Fork.git"
@@ -186,7 +220,7 @@ install_master() {
         fi
         cd "${INSTALL_DIR}"
         go mod download
-        go build -o "${BIN_PATH}" ./cmd/master
+        CGO_ENABLED=1 GOOS=linux GOARCH=$(go env GOARCH) go build -o "${BIN_PATH}" ./cmd/master
     fi
     
     chmod +x "${BIN_PATH}"
@@ -195,8 +229,9 @@ install_master() {
     SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p -c 32)
     
     ENV_FILE="/etc/vpn-master.env"
+    PORT="8085"
     cat >"${ENV_FILE}" <<EOF
-MASTER_HTTP_PORT=8085
+MASTER_HTTP_PORT=${PORT}
 MASTER_DB_DRIVER=sqlite
 MASTER_DB_DSN=${DATA_DIR}/master.db
 MASTER_DB_AUTO_MIGRATE=true
@@ -227,11 +262,23 @@ EOF
     systemctl daemon-reload
     systemctl enable --now vpn-master.service
     
+    # Get server IP
+    SERVER_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "YOUR_SERVER_IP")
+    
     echo -e "${green}VPN Master Panel installed successfully!${plain}"
-    echo -e "${green}Service: vpn-master${plain}"
-    echo -e "${green}Port: 8085${plain}"
-    echo -e "${green}Database: ${DATA_DIR}/master.db${plain}"
-    echo -e "${green}Config: ${ENV_FILE}${plain}"
+    echo ""
+    echo -e "┌───────────────────────────────────────────────────────┐"
+    echo -e "│  ${blue}Access Information:${plain}                              │"
+    echo -e "│                                                       │"
+    echo -e "│  ${green}API URL:${plain}    http://${SERVER_IP}:${PORT}/api          │"
+    echo -e "│  ${green}Health:${plain}      http://${SERVER_IP}:${PORT}/api/health    │"
+    echo -e "│  ${green}Dashboard:${plain}   http://${SERVER_IP}:${PORT}/api/admin/dashboard │"
+    echo -e "│                                                       │"
+    echo -e "│  ${yellow}Service:${plain}     vpn-master                            │"
+    echo -e "│  ${yellow}Port:${plain}         ${PORT}                                │"
+    echo -e "│  ${yellow}Database:${plain}     ${DATA_DIR}/master.db                │"
+    echo -e "│  ${yellow}Config:${plain}       ${ENV_FILE}                           │"
+    echo -e "└───────────────────────────────────────────────────────┘"
     echo ""
     echo -e "${yellow}To check status: systemctl status vpn-master${plain}"
     echo -e "${yellow}To view logs: journalctl -u vpn-master -f${plain}"
@@ -253,3 +300,6 @@ echo -e "│  ${blue}systemctl restart vpn-master${plain} - Restart          │
 echo -e "│  ${blue}systemctl status vpn-master${plain}  - Status           │"
 echo -e "│  ${blue}journalctl -u vpn-master -f${plain}  - View logs        │"
 echo -e "└───────────────────────────────────────────────────────┘"
+echo ""
+echo -e "${yellow}Note:${plain} Access URLs are displayed above after service starts."
+echo -e "${yellow}To see URLs in logs: journalctl -u vpn-master -n 20${plain}"

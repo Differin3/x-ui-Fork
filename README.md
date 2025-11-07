@@ -63,6 +63,8 @@ curl -fsSL https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh
 - Конфигурация: `/etc/vpn-master.env`
 - База данных: `/var/lib/vpn-master/master.db`
 
+**Важно:** Скрипт автоматически устанавливает `build-essential`/`gcc` для поддержки SQLite (требуется CGO). Если возникли проблемы, см. [Troubleshooting](docs/TROUBLESHOOTING.md).
+
 ### 3. Установка агента на ноде
 
 ```bash
