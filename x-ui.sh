@@ -143,7 +143,7 @@ before_show_menu() {
 }
 
 install() {
-    bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/main/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh)
     if [[ $? == 0 ]]; then
         if [[ $# == 0 ]]; then
             start
@@ -162,7 +162,7 @@ update() {
         fi
         return 0
     fi
-    bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/main/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh)
     if [[ $? == 0 ]]; then
         LOGI "Update is complete, Panel has automatically restarted "
         before_show_menu
@@ -180,8 +180,7 @@ update_menu() {
         return 0
     fi
 
-    wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
-    chmod +x /usr/local/x-ui/x-ui.sh
+    wget --no-check-certificate -O /usr/bin/x-ui https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/x-ui.sh
     chmod +x /usr/bin/x-ui
 
     if [[ $? == 0 ]]; then
@@ -233,7 +232,7 @@ uninstall() {
     echo ""
     echo -e "Uninstalled Successfully.\n"
     echo "If you need to install this panel again, you can use below command:"
-    echo -e "${green}bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)${plain}"
+    echo -e "${green}bash <(curl -Ls https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh)${plain}"
     echo ""
     # Trap the SIGTERM signal
     trap delete_script SIGTERM
@@ -344,6 +343,7 @@ start() {
         echo ""
         LOGI "Panel is running, No need to start again, If you need to restart, please select restart"
     else
+        repair_runtime >/dev/null 2>&1 || true
         systemctl start x-ui
         sleep 2
         check_status
@@ -381,6 +381,7 @@ stop() {
 }
 
 restart() {
+    repair_runtime >/dev/null 2>&1 || true
     systemctl restart x-ui
     sleep 2
     check_status
@@ -575,7 +576,7 @@ enable_bbr() {
 }
 
 update_shell() {
-    wget -O /usr/bin/x-ui -N --no-check-certificate https://github.com/MHSanaei/3x-ui/raw/main/x-ui.sh
+    wget -O /usr/bin/x-ui -N --no-check-certificate https://github.com/Differin3/x-ui-Fork/raw/main/x-ui.sh
     if [[ $? != 0 ]]; then
         echo ""
         LOGE "Failed to download script, Please check whether the machine can connect Github"
@@ -666,7 +667,7 @@ show_enable_status() {
 
 check_xray_status() {
     count=$(ps -ef | grep "xray-linux" | grep -v "grep" | wc -l)
-    if [[ count -ne 0 ]]; then
+    if [[ $count -ne 0 ]]; then
         return 0
     else
         return 1
@@ -1738,6 +1739,7 @@ show_usage() {
 │  ${blue}x-ui legacy${plain}       - legacy version                   │
 │  ${blue}x-ui install${plain}      - Install                          │
 │  ${blue}x-ui uninstall${plain}    - Uninstall                        │
+│  ${blue}x-ui repair${plain}       - Repair (Xray/Translations)       │
 └───────────────────────────────────────────────────────┘"
 }
 
@@ -1777,10 +1779,11 @@ show_menu() {
 │  ${green}23.${plain} Enable BBR                                │
 │  ${green}24.${plain} Update Geo Files                          │
 │  ${green}25.${plain} Speedtest by Ookla                        │
+│  ${green}26.${plain} Repair (Xray/Translations)                │
 ╚────────────────────────────────────────────────╝
 "
     show_status
-    echo && read -p "Please enter your selection [0-25]: " num
+    echo && read -p "Please enter your selection [0-26]: " num
 
     case "${num}" in
     0)
@@ -1861,8 +1864,11 @@ show_menu() {
     25)
         run_speedtest
         ;;
+    26)
+        repair_runtime
+        ;;
     *)
-        LOGE "Please enter the correct number [0-25]"
+        LOGE "Please enter the correct number [0-26]"
         ;;
     esac
 }
@@ -1908,8 +1914,126 @@ if [[ $# > 0 ]]; then
     "uninstall")
         check_install 0 && uninstall 0
         ;;
+    "repair")
+        repair_runtime
+        ;;
     *) show_usage ;;
     esac
 else
     show_menu
 fi
+
+# Ensure runtime pieces (Xray binary and translations) exist
+repair_runtime() {
+    local base="/usr/local/x-ui"
+    if [[ ! -d "$base" ]]; then
+        LOGE "x-ui not installed at $base"
+        return 1
+    fi
+    mkdir -p "$base/bin"
+
+    # Determine arch target name
+    local m=$(uname -m)
+    local arch_name="amd64"   # name used by x-ui for target filename
+    local xray_pkg_arch="64"  # name used by Xray release asset
+    case "$m" in
+        x86_64|x64|amd64) arch_name="amd64"; xray_pkg_arch="64" ;;
+        i*86|x86)         arch_name="386";   xray_pkg_arch="32" ;;
+        aarch64|arm64)    arch_name="arm64"; xray_pkg_arch="arm64-v8a" ;;
+        armv7*|armv7|arm) arch_name="arm";   xray_pkg_arch="arm32-v7a" ;;
+        armv6*)           arch_name="arm";   xray_pkg_arch="arm32-v5" ;;
+        s390x) arch_name="s390x" ;;
+        *) arch_name="amd64"; xray_pkg_arch="64" ;;
+    esac
+
+    local xray_target="$base/bin/xray-linux-$arch_name"
+
+    if [[ ! -x "$xray_target" ]]; then
+        LOGI "Xray binary missing; downloading latest asset for $m ..."
+        # ensure unzip available
+        if ! command -v unzip >/dev/null 2>&1; then
+            if command -v apt-get >/dev/null 2>&1; then
+                apt-get update >/dev/null 2>&1 && apt-get install -y unzip >/dev/null 2>&1 || true
+            elif command -v yum >/dev/null 2>&1; then
+                yum install -y unzip >/dev/null 2>&1 || true
+            elif command -v dnf >/dev/null 2>&1; then
+                dnf install -y unzip >/dev/null 2>&1 || true
+            elif command -v apk >/dev/null 2>&1; then
+                apk add --no-cache unzip >/dev/null 2>&1 || true
+            elif command -v pacman >/dev/null 2>&1; then
+                pacman -Sy --noconfirm unzip >/dev/null 2>&1 || true
+            fi
+        fi
+
+        local tmpd
+        tmpd=$(mktemp -d)
+        # Use "latest/download" to avoid API rate limits and tag parsing
+        local url_zip="https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-${xray_pkg_arch}.zip"
+        wget -O "$tmpd/xray.zip" "$url_zip" >/dev/null 2>&1 \
+        || curl -4 -Lso "$tmpd/xray.zip" "$url_zip" >/dev/null 2>&1 \
+        || wget -O "$tmpd/xray.zip" "https://ghproxy.com/${url_zip}" >/dev/null 2>&1 \
+        || true
+        if [[ -s "$tmpd/xray.zip" ]]; then
+            unzip -o "$tmpd/xray.zip" -d "$tmpd" >/dev/null 2>&1 || true
+        fi
+        # Copy Xray binary
+        if [[ -f "$tmpd/xray" ]]; then
+            cp "$tmpd/xray" "$xray_target"
+            chmod +x "$xray_target"
+            LOGI "Xray installed to $xray_target"
+        else
+            LOGE "Failed to obtain Xray binary for arch ${xray_pkg_arch}"
+        fi
+        # Copy geo databases if present in archive
+        if [[ -f "$tmpd/geoip.dat" ]]; then
+            cp "$tmpd/geoip.dat" "$base/bin/geoip.dat" >/dev/null 2>&1 || true
+        fi
+        if [[ -f "$tmpd/geosite.dat" ]]; then
+            cp "$tmpd/geosite.dat" "$base/bin/geosite.dat" >/dev/null 2>&1 || true
+        fi
+        rm -rf "$tmpd"
+    fi
+
+    # Ensure geo databases exist; robust multi-mirror fallback for restricted networks
+    if [[ ! -f "$base/bin/geoip.dat" || ! -s "$base/bin/geoip.dat" ]]; then
+        LOGI "Fetching geoip.dat ..."
+        mkdir -p "$base/bin"
+        # Try official latest
+        wget -O "$base/bin/geoip.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+        || curl -4 -Lso "$base/bin/geoip.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+        # Try jsDelivr CDN
+        || wget -O "$base/bin/geoip.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" >/dev/null 2>&1 \
+        || curl -4 -Lso "$base/bin/geoip.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" >/dev/null 2>&1 \
+        # Try ghproxy
+        || wget -O "$base/bin/geoip.dat" "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+        || true
+    fi
+    if [[ ! -f "$base/bin/geosite.dat" || ! -s "$base/bin/geosite.dat" ]]; then
+        LOGI "Fetching geosite.dat ..."
+        mkdir -p "$base/bin"
+        # Try official latest
+        wget -O "$base/bin/geosite.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+        || curl -4 -Lso "$base/bin/geosite.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+        # Try jsDelivr CDN
+        || wget -O "$base/bin/geosite.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" >/dev/null 2>&1 \
+        || curl -4 -Lso "$base/bin/geosite.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" >/dev/null 2>&1 \
+        # Try ghproxy
+        || wget -O "$base/bin/geosite.dat" "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+        || true
+    fi
+    # Final permissions
+    if [[ -f "$base/bin/geoip.dat" ]]; then chmod 644 "$base/bin/geoip.dat" >/dev/null 2>&1; fi
+    if [[ -f "$base/bin/geosite.dat" ]]; then chmod 644 "$base/bin/geosite.dat" >/dev/null 2>&1; fi
+
+    # Ensure translations exist (fix reserved key issues by syncing from installed tree)
+    if [[ ! -d "$base/web/translation" ]]; then
+        mkdir -p "$base/web/translation"
+    fi
+    # Always refresh core translations to avoid reserved key conflicts
+    LOGI "Refreshing core translations (en_US, ru_RU)..."
+    wget -O "$base/web/translation/translate.en_US.toml" https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.en_US.toml >/dev/null 2>&1 || true
+    wget -O "$base/web/translation/translate.ru_RU.toml" https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.ru_RU.toml >/dev/null 2>&1 || true
+
+    LOGI "Repair completed. Restarting service..."
+    systemctl restart x-ui
+}

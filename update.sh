@@ -74,25 +74,25 @@ install_base() {
 	echo -e "${green}Updating and install dependency packages...${plain}"
 	case "${release}" in
 	ubuntu | debian | armbian)
-		apt-get update >/dev/null 2>&1 && apt-get install -y -q wget curl tar tzdata >/dev/null 2>&1
+		apt-get update >/dev/null 2>&1 && apt-get install -y -q wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	centos | rhel | almalinux | rocky | ol)
-		yum -y update >/dev/null 2>&1 && yum install -y -q wget curl tar tzdata >/dev/null 2>&1
+		yum -y update >/dev/null 2>&1 && yum install -y -q wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	fedora | amzn | virtuozzo)
-		dnf -y update >/dev/null 2>&1 && dnf install -y -q wget curl tar tzdata >/dev/null 2>&1
+		dnf -y update >/dev/null 2>&1 && dnf install -y -q wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	arch | manjaro | parch)
-		pacman -Syu >/dev/null 2>&1 && pacman -Syu --noconfirm wget curl tar tzdata >/dev/null 2>&1
+		pacman -Syu >/dev/null 2>&1 && pacman -Syu --noconfirm wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	opensuse-tumbleweed | opensuse-leap)
-		zypper refresh >/dev/null 2>&1 && zypper -q install -y wget curl tar timezone >/dev/null 2>&1
+		zypper refresh >/dev/null 2>&1 && zypper -q install -y wget curl tar timezone unzip >/dev/null 2>&1
 		;;
 	alpine)
-		apk update >/dev/null 2>&1 && apk add wget curl tar tzdata >/dev/null 2>&1
+		apk update >/dev/null 2>&1 && apk add wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	*)
-		apt-get update >/dev/null 2>&1 && apt install -y -q wget curl tar tzdata >/dev/null 2>&1
+		apt-get update >/dev/null 2>&1 && apt install -y -q wget curl tar tzdata unzip >/dev/null 2>&1
 		;;
 	esac
 }
@@ -113,24 +113,26 @@ update_x-ui() {
 		_fail "ERROR: Current x-ui version: unknown"
 	fi
 
-	echo -e "${green}Downloading new x-ui version...${plain}"
+	echo -e "${green}Downloading new x-ui version (Differin3 fork)...${plain}"
 
-	tag_version=$(${curl_bin} -Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+	# Try to fetch latest release from Differin3 fork first
+	tag_version=$(${curl_bin} -Ls "https://api.github.com/repos/Differin3/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 	if [[ ! -n "$tag_version" ]]; then
 		echo -e "${yellow}Trying to fetch version with IPv4...${plain}"
-		tag_version=$(${curl_bin} -4 -Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-		if [[ ! -n "$tag_version" ]]; then
-			_fail "ERROR: Failed to fetch x-ui version, it may be due to GitHub API restrictions, please try it later"
-		fi
+		tag_version=$(${curl_bin} -4 -Ls "https://api.github.com/repos/Differin3/x-ui-Fork/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 	fi
-	echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
-	${wget_bin} -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz 2>/dev/null
-	if [[ $? -ne 0 ]]; then
-		echo -e "${yellow}Trying to fetch version with IPv4...${plain}"
-		${wget_bin} --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz 2>/dev/null
+
+	build_from_source=false
+	if [[ -n "$tag_version" ]]; then
+		echo -e "Got x-ui latest fork version: ${tag_version}, beginning the installation..."
+		${wget_bin} -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz 2>/dev/null || ${wget_bin} --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz 2>/dev/null
 		if [[ $? -ne 0 ]]; then
-			_fail "ERROR: Failed to download x-ui, please be sure that your server can access GitHub"
+			echo -e "${yellow}Fork release not available for this arch; will build from source...${plain}"
+			build_from_source=true
 		fi
+	else
+		echo -e "${yellow}Could not get fork release. Falling back to build from main branch...${plain}"
+		build_from_source=true
 	fi
 
 	if [[ -e /usr/local/x-ui/ ]]; then
@@ -172,31 +174,109 @@ update_x-ui() {
 		_fail "ERROR: x-ui not installed."
 	fi
 
-	echo -e "${green}Installing new x-ui version...${plain}"
-	tar zxvf x-ui-linux-$(arch).tar.gz >/dev/null 2>&1
-	rm x-ui-linux-$(arch).tar.gz -f >/dev/null 2>&1
-	cd x-ui >/dev/null 2>&1
-	chmod +x x-ui >/dev/null 2>&1
-
-	# Check the system's architecture and rename the file accordingly
-	if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
-		mv bin/xray-linux-$(arch) bin/xray-linux-arm >/dev/null 2>&1
-		chmod +x bin/xray-linux-arm >/dev/null 2>&1
-	fi
-
-	chmod +x x-ui bin/xray-linux-$(arch) >/dev/null 2>&1
-
-	echo -e "${green}Downloading and installing x-ui.sh script...${plain}"
-	${wget_bin} -O /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh >/dev/null 2>&1
-	if [[ $? -ne 0 ]]; then
-		echo -e "${yellow}Trying to fetch x-ui with IPv4...${plain}"
-		${wget_bin} --inet4-only -O /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh >/dev/null 2>&1
-		if [[ $? -ne 0 ]]; then
-			_fail "ERROR: Failed to download x-ui.sh script, please be sure that your server can access GitHub"
+	if [[ "$build_from_source" == true ]]; then
+		echo -e "${green}Building from main branch...${plain}"
+		cd /usr/local || _fail "Cannot cd to /usr/local"
+		rm -rf x-ui-source >/dev/null 2>&1
+		echo -e "Cloning repository..."
+		git clone --depth 1 https://github.com/Differin3/x-ui-Fork.git x-ui-source >/dev/null 2>&1 || _fail "Failed to clone Differin3/x-ui-Fork"
+		cd x-ui-source || _fail "Source dir missing"
+		# install minimal build deps
+		if ! command -v go >/dev/null 2>&1; then
+			echo -e "${yellow}Installing Go (build dependency)...${plain}"
+			case "${release}" in
+			ubuntu|debian|armbian)
+				apt-get update >/dev/null 2>&1 && apt-get install -y -q golang git >/dev/null 2>&1 ;;
+			centos|rhel|almalinux|rocky|ol)
+				yum -y install golang git >/dev/null 2>&1 ;;
+			fedora|amzn)
+				dnf -y install golang git >/dev/null 2>&1 ;;
+			arch|manjaro|parch)
+				pacman -Syu --noconfirm go git >/dev/null 2>&1 ;;
+			alpine)
+				apk add go git >/dev/null 2>&1 ;;
+			*)
+				echo -e "${yellow}Unknown OS, attempting golang install via package manager...${plain}"
+				apt-get update >/dev/null 2>&1 && apt-get install -y -q golang git >/dev/null 2>&1 || true ;;
+			esac
 		fi
+		echo -e "Building x-ui..."
+		go build -o x-ui . >/dev/null 2>&1 || _fail "Go build failed"
+		# prepare target layout
+		rm -rf /usr/local/x-ui >/dev/null 2>&1
+		mkdir -p /usr/local/x-ui/bin >/dev/null 2>&1
+		mkdir -p /usr/local/x-ui/web/translation >/dev/null 2>&1
+		cp -r web /usr/local/x-ui/ >/dev/null 2>&1
+		cp -r web/translation/*.toml /usr/local/x-ui/web/translation/ >/dev/null 2>&1
+		cp -r web/html /usr/local/x-ui/web/ >/dev/null 2>&1
+		cp -r database /usr/local/x-ui/ >/dev/null 2>&1
+		cp -r config /usr/local/x-ui/ 2>/dev/null || true
+		cp -r x-ui.service /usr/local/x-ui/ 2>/dev/null || true
+		cp x-ui /usr/local/x-ui/x-ui >/dev/null 2>&1
+	else
+		echo -e "${green}Installing new x-ui version from release...${plain}"
+		tar zxvf x-ui-linux-$(arch).tar.gz >/dev/null 2>&1
+		rm x-ui-linux-$(arch).tar.gz -f >/dev/null 2>&1
+		cd x-ui >/dev/null 2>&1
+		chmod +x x-ui >/dev/null 2>&1
+		# ensure target tree
+		mkdir -p /usr/local/x-ui/bin >/dev/null 2>&1
+		cp -r . /usr/local/x-ui/ >/dev/null 2>&1
 	fi
 
-	chmod +x /usr/local/x-ui/x-ui.sh >/dev/null 2>&1
+	# Ensure Xray-core exists in bin/
+	echo -e "${green}Ensuring Xray-core binary is present...${plain}"
+	cd /usr/local/x-ui || _fail "x-ui install dir missing"
+	mkdir -p bin >/dev/null 2>&1
+	cpu_arch=$(arch)
+	xray_target="bin/xray-linux-${cpu_arch}"
+	if [[ "${cpu_arch}" == "armv5" || "${cpu_arch}" == "armv6" || "${cpu_arch}" == "armv7" ]]; then
+		xray_target="bin/xray-linux-arm"
+	fi
+	if [[ ! -x "${xray_target}" ]]; then
+		echo -e "${yellow}Xray binary missing, downloading...${plain}"
+		xr_ver=$(${curl_bin} -Ls https://api.github.com/repos/XTLS/Xray-core/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+		xr_pkg_arch=${cpu_arch}
+		[[ "${cpu_arch}" == armv5 || "${cpu_arch}" == armv6 || "${cpu_arch}" == armv7 ]] && xr_pkg_arch=arm
+		mkdir -p /tmp/xray >/dev/null 2>&1
+		${wget_bin} -O /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${xr_ver}/Xray-linux-${xr_pkg_arch}.zip" >/dev/null 2>&1 \
+		|| ${curl_bin} -4 -Lso /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${xr_ver}/Xray-linux-${xr_pkg_arch}.zip" >/dev/null 2>&1 \
+		|| ${wget_bin} -O /tmp/xray.zip "https://ghproxy.com/https://github.com/XTLS/Xray-core/releases/download/${xr_ver}/Xray-linux-${xr_pkg_arch}.zip" >/dev/null 2>&1 \
+		|| true
+		unzip -o /tmp/xray.zip -d /tmp/xray >/dev/null 2>&1 || true
+		if [[ -f /tmp/xray/xray ]]; then
+			cp /tmp/xray/xray "${xray_target}" >/dev/null 2>&1
+			chmod +x "${xray_target}" >/dev/null 2>&1
+		else
+			echo -e "${red}Failed to fetch Xray-core. You may install it manually later.${plain}"
+		fi
+		rm -rf /tmp/xray /tmp/xray.* >/dev/null 2>&1
+	fi
+
+	# Ensure geoip.dat and geosite.dat exist (multi-mirror fallbacks)
+	mkdir -p /usr/local/x-ui/bin >/dev/null 2>&1
+	if [[ ! -s /usr/local/x-ui/bin/geoip.dat ]]; then
+		echo -e "${green}Fetching geoip.dat ...${plain}"
+		${wget_bin} -O /usr/local/x-ui/bin/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+		|| ${curl_bin} -4 -Lso /usr/local/x-ui/bin/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+		|| ${wget_bin} -O /usr/local/x-ui/bin/geoip.dat "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" >/dev/null 2>&1 \
+		|| ${wget_bin} -O /usr/local/x-ui/bin/geoip.dat "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+		|| true
+		chmod 644 /usr/local/x-ui/bin/geoip.dat >/dev/null 2>&1 || true
+	fi
+	if [[ ! -s /usr/local/x-ui/bin/geosite.dat ]]; then
+		echo -e "${green}Fetching geosite.dat ...${plain}"
+		${wget_bin} -O /usr/local/x-ui/bin/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+		|| ${curl_bin} -4 -Lso /usr/local/x-ui/bin/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+		|| ${wget_bin} -O /usr/local/x-ui/bin/geosite.dat "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" >/dev/null 2>&1 \
+		|| ${wget_bin} -O /usr/local/x-ui/bin/geosite.dat "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+		|| true
+		chmod 644 /usr/local/x-ui/bin/geosite.dat >/dev/null 2>&1 || true
+	fi
+
+	echo -e "${green}Downloading and installing x-ui.sh script from Differin3...${plain}"
+	${wget_bin} -O /usr/bin/x-ui https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/x-ui.sh >/dev/null 2>&1 || ${wget_bin} --inet4-only -O /usr/bin/x-ui https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/x-ui.sh >/dev/null 2>&1 || _fail "ERROR: Failed to download x-ui.sh script"
+
 	chmod +x /usr/bin/x-ui >/dev/null 2>&1
 
 	echo -e "${green}Changing owner...${plain}"
@@ -222,7 +302,13 @@ update_x-ui() {
 		rc-service x-ui start >/dev/null 2>&1
 	else
 		echo -e "${green}Installing systemd unit...${plain}"
-		cp -f x-ui.service /etc/systemd/system/ >/dev/null 2>&1
+		if [[ -f x-ui.service ]]; then
+			cp -f x-ui.service /etc/systemd/system/ >/dev/null 2>&1
+		elif [[ -f /usr/local/x-ui/x-ui.service ]]; then
+			cp -f /usr/local/x-ui/x-ui.service /etc/systemd/system/ >/dev/null 2>&1
+		else
+			echo -e "${yellow}Systemd unit not found in package, proceeding...${plain}"
+		fi
 		chown root:root /etc/systemd/system/x-ui.service >/dev/null 2>&1
 		systemctl daemon-reload >/dev/null 2>&1
 		systemctl enable x-ui >/dev/null 2>&1

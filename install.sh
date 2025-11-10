@@ -75,6 +75,7 @@ config_after_install() {
     local existing_hasDefaultCredential=$(/usr/local/x-ui/x-ui setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
     local existing_webBasePath=$(/usr/local/x-ui/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}')
     local existing_port=$(/usr/local/x-ui/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
+    local creds_file="/usr/local/x-ui/INSTALL_CREDS"
     local URL_lists=(
         "https://api4.ipify.org"
 		"https://ipv4.icanhazip.com"
@@ -107,6 +108,10 @@ config_after_install() {
             fi
 
             /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
+            # persist credentials for summary output
+            echo "USERNAME=${config_username}" > "${creds_file}"
+            echo "PASSWORD=${config_password}" >> "${creds_file}"
+            chmod 600 "${creds_file}" >/dev/null 2>&1
             echo -e "This is a fresh installation, generating random login info for security concerns:"
             echo -e "###############################################"
             echo -e "${green}Username: ${config_username}${plain}"
@@ -129,6 +134,10 @@ config_after_install() {
 
             echo -e "${yellow}Default credentials detected. Security update required...${plain}"
             /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}"
+            # persist credentials for summary output
+            echo "USERNAME=${config_username}" > "${creds_file}"
+            echo "PASSWORD=${config_password}" >> "${creds_file}"
+            chmod 600 "${creds_file}" >/dev/null 2>&1
             echo -e "Generated new random login credentials:"
             echo -e "###############################################"
             echo -e "${green}Username: ${config_username}${plain}"
@@ -140,6 +149,51 @@ config_after_install() {
     fi
 
     /usr/local/x-ui/x-ui migrate
+}
+
+print_access_summary() {
+    local creds_file="/usr/local/x-ui/INSTALL_CREDS"
+    local show_info=$(/usr/local/x-ui/x-ui setting -show true)
+    local port=$(echo "$show_info" | awk '/port:/{print $2}')
+    local base=$(echo "$show_info" | awk '/webBasePath:/{print $2}')
+    # fetch IP from multiple sources with short timeouts
+    local URL_lists=(
+        "https://api4.ipify.org"
+        "https://ipv4.icanhazip.com"
+        "https://v4.api.ipinfo.io/ip"
+        "https://ipv4.myexternalip.com/raw"
+        "https://4.ident.me"
+        "https://check-host.net/ip"
+    )
+    local server_ip=""
+    for ip_address in "${URL_lists[@]}"; do
+        server_ip=$(curl -s --max-time 3 "${ip_address}" 2>/dev/null | tr -d '[:space:]')
+        if [[ -n "${server_ip}" ]]; then
+            break
+        fi
+    done
+    # decide protocol based on cert presence
+    local cert_info=$(/usr/local/x-ui/x-ui setting -getCert true 2>/dev/null)
+    local cert_path=$(echo "$cert_info" | awk '/cert:/{print $2}')
+    local proto="http"
+    [[ -n "$cert_path" ]] && proto="https"
+
+    echo -e ""
+    echo -e "════════════════ Panel Access Information ════════════════"
+    echo -e "  Panel Port      : ${green}${port}${plain}"
+    echo -e "  Web Base Path   : ${green}${base}${plain}"
+    echo -e "  Server IP       : ${green}${server_ip}${plain}"
+    echo -e "  Entry URL       : ${green}${proto}://${server_ip}:${port}${base}${plain}"
+    if [[ -f "${creds_file}" ]]; then
+        # shellcheck disable=SC1090
+        source "${creds_file}"
+        echo -e "  Username        : ${green}${USERNAME}${plain}"
+        echo -e "  Password        : ${green}${PASSWORD}${plain}"
+    else
+        echo -e "  Username        : ${yellow}<unchanged> (not modified by installer)${plain}"
+        echo -e "  Password        : ${yellow}<unchanged> (not modified by installer)${plain}"
+    fi
+    echo -e "══════════════════════════════════════════════════════════"
 }
 
 install_x-ui() {
@@ -341,6 +395,8 @@ install_x-ui() {
     fi
 
     echo -e "${green}x-ui ${tag_version}${plain} installation finished, it is running now..."
+    # Print detected access summary
+    print_access_summary
     echo -e ""
     echo -e "┌───────────────────────────────────────────────────────┐
 │  ${blue}x-ui control menu usages (subcommands):${plain}              │
