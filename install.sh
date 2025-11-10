@@ -148,7 +148,7 @@ install_x-ui() {
     # Download resources
     if [ $# == 0 ]; then
         # Try multiple methods to get latest version with timeouts
-        echo -e "${yellow}Fetching latest version...${plain}"
+        echo -e "${yellow}Fetching latest version from releases...${plain}"
         tag_version=$(curl -s --max-time 10 "https://api.github.com/repos/Differin3/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${yellow}Trying with IPv4...${plain}"
@@ -163,21 +163,22 @@ install_x-ui() {
             tag_version=$(curl -s --max-time 10 "https://github.com/Differin3/x-ui-Fork/releases" 2>/dev/null | grep -oE 'releases/tag/v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's|releases/tag/||')
         fi
         if [[ ! -n "$tag_version" ]]; then
-            echo -e "${red}Failed to fetch x-ui version automatically.${plain}"
-            echo -e "${yellow}Possible solutions:${plain}"
-            echo -e "  1. Specify version manually: ${green}bash <(curl -Ls https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh) v2.8.5${plain}"
-            echo -e "  2. Check your internet connection and GitHub accessibility"
-            echo -e "  3. Try again later (GitHub API may be rate-limited)"
-            echo -e "  4. Clone repository and build manually: ${green}git clone https://github.com/Differin3/x-ui-Fork.git && cd x-ui-Fork && go build -o x-ui${plain}"
-            exit 1
-        fi
-        echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
-        wget --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
-        if [[ $? -ne 0 ]]; then
-            echo -e "${red}Downloading x-ui failed, please be sure that your server can access GitHub ${plain}"
-            exit 1
+            echo -e "${yellow}No releases found, will build from main branch...${plain}"
+            tag_version="main"
+            USE_BUILD_FROM_SOURCE=true
+        else
+            echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
+            wget --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+            if [[ $? -ne 0 ]]; then
+                echo -e "${yellow}Download failed, will build from main branch...${plain}"
+                tag_version="main"
+                USE_BUILD_FROM_SOURCE=true
+            else
+                USE_BUILD_FROM_SOURCE=false
+            fi
         fi
     else
+        USE_BUILD_FROM_SOURCE=false
         tag_version=$1
         tag_version_numeric=${tag_version#v}
         min_version="2.3.5"
@@ -211,20 +212,112 @@ install_x-ui() {
         rm /usr/local/x-ui/ -rf
     fi
 
-    # Extract resources and set permissions
-    tar zxvf x-ui-linux-$(arch).tar.gz
-    rm x-ui-linux-$(arch).tar.gz -f
-    
-    cd x-ui
-    chmod +x x-ui
-    chmod +x x-ui.sh
+    # Build from source if releases are not available
+    if [[ "${USE_BUILD_FROM_SOURCE}" == "true" ]]; then
+        echo -e "${yellow}Building from main branch...${plain}"
+        BUILD_DIR="/tmp/x-ui-build-$$"
+        mkdir -p ${BUILD_DIR}
+        cd ${BUILD_DIR}
+        
+        # Check if git and go are installed
+        if ! command -v git &> /dev/null; then
+            echo -e "${yellow}Installing git...${plain}"
+            case "${release}" in
+            ubuntu | debian | armbian)
+                apt-get install -y -q git
+                ;;
+            centos | rhel | almalinux | rocky | ol)
+                yum install -y -q git
+                ;;
+            fedora | amzn | virtuozzo)
+                dnf install -y -q git
+                ;;
+            alpine)
+                apk add -q git
+                ;;
+            esac
+        fi
+        
+        if ! command -v go &> /dev/null; then
+            echo -e "${yellow}Installing Go...${plain}"
+            GO_VERSION="1.23"
+            GO_ARCH=$(arch)
+            if [[ "${GO_ARCH}" == "armv5" || "${GO_ARCH}" == "armv6" || "${GO_ARCH}" == "armv7" ]]; then
+                GO_ARCH="armv6l"
+            fi
+            wget --inet4-only -q "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -O go.tar.gz
+            if [[ $? -eq 0 ]]; then
+                tar -C /usr/local -xzf go.tar.gz
+                export PATH=$PATH:/usr/local/go/bin
+            else
+                echo -e "${red}Failed to download Go. Please install Go manually.${plain}"
+                exit 1
+            fi
+        fi
+        
+        # Clone and build
+        echo -e "${yellow}Cloning repository...${plain}"
+        git clone --depth 1 https://github.com/Differin3/x-ui-Fork.git x-ui-source
+        if [[ $? -ne 0 ]]; then
+            echo -e "${red}Failed to clone repository${plain}"
+            exit 1
+        fi
+        
+        cd x-ui-source
+        echo -e "${yellow}Building x-ui...${plain}"
+        go build -o x-ui .
+        if [[ $? -ne 0 ]]; then
+            echo -e "${red}Build failed${plain}"
+            exit 1
+        fi
+        
+        # Create x-ui directory structure
+        mkdir -p /usr/local/x-ui/bin
+        cp x-ui /usr/local/x-ui/
+        cp x-ui.sh /usr/local/x-ui/
+        cp x-ui.service /usr/local/x-ui/ 2>/dev/null || true
+        
+        # Download xray binary (try to get from releases or use existing)
+        XRAY_ARCH=$(arch)
+        if [[ "${XRAY_ARCH}" == "armv5" || "${XRAY_ARCH}" == "armv6" || "${XRAY_ARCH}" == "armv7" ]]; then
+            XRAY_ARCH="arm32-v7a"
+        elif [[ "${XRAY_ARCH}" == "arm64" || "${XRAY_ARCH}" == "aarch64" ]]; then
+            XRAY_ARCH="arm64-v8a"
+        fi
+        
+        XRAY_VERSION=$(curl -s --max-time 5 "https://api.github.com/repos/XTLS/Xray-core/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/v//')
+        if [[ -n "${XRAY_VERSION}" ]]; then
+            echo -e "${yellow}Downloading Xray ${XRAY_VERSION}...${plain}"
+            wget --inet4-only -q "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip" -O xray.zip
+            if [[ $? -eq 0 ]]; then
+                unzip -q xray.zip -d /usr/local/x-ui/bin/
+                mv /usr/local/x-ui/bin/xray /usr/local/x-ui/bin/xray-linux-$(arch) 2>/dev/null || true
+                chmod +x /usr/local/x-ui/bin/xray-linux-$(arch)
+            fi
+        fi
+        
+        cd /usr/local/x-ui
+        chmod +x x-ui x-ui.sh
+        rm -rf ${BUILD_DIR}
+        echo -e "${green}Build completed successfully${plain}"
+    else
+        # Extract resources and set permissions
+        tar zxvf x-ui-linux-$(arch).tar.gz
+        rm x-ui-linux-$(arch).tar.gz -f
+        
+        cd x-ui
+        chmod +x x-ui
+        chmod +x x-ui.sh
+    fi
 
     # Check the system's architecture and rename the file accordingly
-    if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
-        mv bin/xray-linux-$(arch) bin/xray-linux-arm
-        chmod +x bin/xray-linux-arm
+    if [[ "${USE_BUILD_FROM_SOURCE}" != "true" ]]; then
+        if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
+            mv bin/xray-linux-$(arch) bin/xray-linux-arm
+            chmod +x bin/xray-linux-arm
+        fi
+        chmod +x x-ui bin/xray-linux-$(arch)
     fi
-    chmod +x x-ui bin/xray-linux-$(arch)
 
     # Update x-ui cli and se set permission
     mv -f /usr/bin/x-ui-temp /usr/bin/x-ui

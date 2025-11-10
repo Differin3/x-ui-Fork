@@ -57,7 +57,7 @@
 "usage" = "Usage"
 "twoFactorCode" = "Code"
 "remained" = "Remained"
-"security" = "Security"
+"securityLabel" = "Security"
 "secAlertTitle" = "Security Alert"
 "secAlertSsl" = "This connection is not secure. Please avoid entering sensitive information until TLS is activated for data protection."
 "secAlertConf" = "Certain settings are vulnerable to attacks. It is recommended to reinforce security protocols to prevent potential breaches."

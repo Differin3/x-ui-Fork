@@ -98,7 +98,7 @@
       </template>
     </a-col>
     <template v-if="dbInbound.hasLink()">
-      {{ i18n "security" }}
+      {{ i18n "securityLabel" }}
       <a-tag :color="inbound.stream.security == 'none' ? 'red' : 'green'">[[ inbound.stream.security ]]</a-tag>
       <br />
       <td>Authentication</td>

@@ -2,7 +2,7 @@
 <!-- tls enable -->
 <a-form v-if="inbound.canEnableTls()" :colon="false" :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
   <a-divider :style="{ margin: '3px 0' }"></a-divider>
-  <a-form-item label='{{ i18n "security" }}'>
+  <a-form-item label='{{ i18n "securityLabel" }}'>
     <a-radio-group v-model="inbound.stream.security" button-style="solid">
       <a-radio-button value="none">{{ i18n "none" }}</a-radio-button>
       <a-radio-button v-if="inbound.canEnableReality()" value="reality">Reality</a-radio-button>
