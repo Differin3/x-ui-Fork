@@ -1948,9 +1948,9 @@ repair_runtime() {
 
     local xray_target="$base/bin/xray-linux-$arch_name"
 
-    if [[ ! -x "$xray_target" ]]; then
-        LOGI "Xray binary missing; downloading latest asset for $m ..."
-        # ensure unzip available
+    # helpers to avoid fragile '||' line continuations on some shells
+    _dl() { command -v wget >/dev/null 2>&1 && wget -O "$2" "$1" >/dev/null 2>&1 || curl -4 -Lso "$2" "$1" >/dev/null 2>&1; }
+    _ensure_unzip() {
         if ! command -v unzip >/dev/null 2>&1; then
             if command -v apt-get >/dev/null 2>&1; then
                 apt-get update >/dev/null 2>&1 && apt-get install -y unzip >/dev/null 2>&1 || true
@@ -1964,19 +1964,20 @@ repair_runtime() {
                 pacman -Sy --noconfirm unzip >/dev/null 2>&1 || true
             fi
         fi
+    }
 
+    if [[ ! -x "$xray_target" ]]; then
+        LOGI "Xray binary missing; downloading latest asset for $m ..."
+        _ensure_unzip
         local tmpd
         tmpd=$(mktemp -d)
-        # Use "latest/download" to avoid API rate limits and tag parsing
         local url_zip="https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-${xray_pkg_arch}.zip"
-        wget -O "$tmpd/xray.zip" "$url_zip" >/dev/null 2>&1 \
-        || curl -4 -Lso "$tmpd/xray.zip" "$url_zip" >/dev/null 2>&1 \
-        || wget -O "$tmpd/xray.zip" "https://ghproxy.com/${url_zip}" >/dev/null 2>&1 \
-        || true
+        if ! _dl "$url_zip" "$tmpd/xray.zip"; then
+            _dl "https://ghproxy.com/${url_zip}" "$tmpd/xray.zip" || true
+        fi
         if [[ -s "$tmpd/xray.zip" ]]; then
             unzip -o "$tmpd/xray.zip" -d "$tmpd" >/dev/null 2>&1 || true
         fi
-        # Copy Xray binary
         if [[ -f "$tmpd/xray" ]]; then
             cp "$tmpd/xray" "$xray_target"
             chmod +x "$xray_target"
@@ -1984,55 +1985,38 @@ repair_runtime() {
         else
             LOGE "Failed to obtain Xray binary for arch ${xray_pkg_arch}"
         fi
-        # Copy geo databases if present in archive
-        if [[ -f "$tmpd/geoip.dat" ]]; then
-            cp "$tmpd/geoip.dat" "$base/bin/geoip.dat" >/dev/null 2>&1 || true
-        fi
-        if [[ -f "$tmpd/geosite.dat" ]]; then
-            cp "$tmpd/geosite.dat" "$base/bin/geosite.dat" >/dev/null 2>&1 || true
-        fi
+        [[ -f "$tmpd/geoip.dat" ]] && cp "$tmpd/geoip.dat" "$base/bin/geoip.dat" >/dev/null 2>&1 || true
+        [[ -f "$tmpd/geosite.dat" ]] && cp "$tmpd/geosite.dat" "$base/bin/geosite.dat" >/dev/null 2>&1 || true
         rm -rf "$tmpd"
     fi
 
-    # Ensure geo databases exist; robust multi-mirror fallback for restricted networks
+    # Ensure geo databases exist with robust fallbacks
     if [[ ! -f "$base/bin/geoip.dat" || ! -s "$base/bin/geoip.dat" ]]; then
         LOGI "Fetching geoip.dat ..."
         mkdir -p "$base/bin"
-        # Try official latest
-        wget -O "$base/bin/geoip.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
-        || curl -4 -Lso "$base/bin/geoip.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
-        # Try jsDelivr CDN
-        || wget -O "$base/bin/geoip.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" >/dev/null 2>&1 \
-        || curl -4 -Lso "$base/bin/geoip.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" >/dev/null 2>&1 \
-        # Try ghproxy
-        || wget -O "$base/bin/geoip.dat" "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1 \
+        _dl "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" "$base/bin/geoip.dat" \
+        || _dl "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geoip.dat" "$base/bin/geoip.dat" \
+        || _dl "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" "$base/bin/geoip.dat" \
         || true
     fi
     if [[ ! -f "$base/bin/geosite.dat" || ! -s "$base/bin/geosite.dat" ]]; then
         LOGI "Fetching geosite.dat ..."
         mkdir -p "$base/bin"
-        # Try official latest
-        wget -O "$base/bin/geosite.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
-        || curl -4 -Lso "$base/bin/geosite.dat" "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
-        # Try jsDelivr CDN
-        || wget -O "$base/bin/geosite.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" >/dev/null 2>&1 \
-        || curl -4 -Lso "$base/bin/geosite.dat" "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" >/dev/null 2>&1 \
-        # Try ghproxy
-        || wget -O "$base/bin/geosite.dat" "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1 \
+        _dl "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" "$base/bin/geosite.dat" \
+        || _dl "https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/geosite.dat" "$base/bin/geosite.dat" \
+        || _dl "https://ghproxy.com/https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" "$base/bin/geosite.dat" \
         || true
     fi
-    # Final permissions
-    if [[ -f "$base/bin/geoip.dat" ]]; then chmod 644 "$base/bin/geoip.dat" >/dev/null 2>&1; fi
-    if [[ -f "$base/bin/geosite.dat" ]]; then chmod 644 "$base/bin/geosite.dat" >/dev/null 2>&1; fi
+    [[ -f "$base/bin/geoip.dat" ]] && chmod 644 "$base/bin/geoip.dat" >/dev/null 2>&1
+    [[ -f "$base/bin/geosite.dat" ]] && chmod 644 "$base/bin/geosite.dat" >/dev/null 2>&1
 
-    # Ensure translations exist (fix reserved key issues by syncing from installed tree)
+    # Ensure translations exist (refresh minimal set)
     if [[ ! -d "$base/web/translation" ]]; then
         mkdir -p "$base/web/translation"
     fi
-    # Always refresh core translations to avoid reserved key conflicts
     LOGI "Refreshing core translations (en_US, ru_RU)..."
-    wget -O "$base/web/translation/translate.en_US.toml" https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.en_US.toml >/dev/null 2>&1 || true
-    wget -O "$base/web/translation/translate.ru_RU.toml" https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.ru_RU.toml >/dev/null 2>&1 || true
+    _dl "https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.en_US.toml" "$base/web/translation/translate.en_US.toml" || true
+    _dl "https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/web/translation/translate.ru_RU.toml" "$base/web/translation/translate.ru_RU.toml" || true
 
     LOGI "Repair completed. Restarting service..."
     systemctl restart x-ui
