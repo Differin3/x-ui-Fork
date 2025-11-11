@@ -165,28 +165,29 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 		return nil, err
 	}
 
-	// Create a new template set with renamed templates (without "html/" prefix)
-	// Gin expects template names like "nodes.html", not "html/nodes.html"
-	result := template.New("").Funcs(funcMap)
+	// Add aliases for root templates without "html/" prefix in the SAME template set
+	// Gin controllers use short names like "index.html", not "html/index.html"
+	// We add aliases to the same template set to preserve template relationships
 	for _, tmpl := range t.Templates() {
 		name := tmpl.Name()
 		// Skip empty name (root template)
 		if name == "" {
 			continue
 		}
-		// Extract filename from path (e.g., "html/nodes.html" -> "nodes.html")
-		parts := strings.Split(name, "/")
-		newName := parts[len(parts)-1]
-
-		// Add the template tree with the new name
-		_, err := result.AddParseTree(newName, tmpl.Tree)
-		if err != nil {
-			logger.Warning("Failed to add template:", name, "->", newName, err)
-			continue
+		// Check if this is a root template (starts with "html/" and has no subdirectory)
+		if strings.HasPrefix(name, "html/") && !strings.Contains(name[len("html/"):], "/") {
+			shortName := name[len("html/"):]
+			// Add alias if it doesn't already exist (in the same template set)
+			if t.Lookup(shortName) == nil {
+				_, err := t.AddParseTree(shortName, tmpl.Tree)
+				if err != nil {
+					logger.Warning("Failed to add template alias:", name, "->", shortName, err)
+				}
+			}
 		}
 	}
 
-	return result, nil
+	return t, nil
 }
 
 // initRouter
