@@ -174,49 +174,10 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 		}
 	}
 
-	// Add aliases for root templates without "html/" prefix in the SAME template set
-	// Gin controllers use short names like "index.html", not "html/index.html"
-	// We add aliases to the same template set to preserve template relationships
-	// Collect root template names first to avoid modifying while iterating
-	var rootTemplates []struct {
-		fullName  string
-		shortName string
-	}
-	for _, tmpl := range t.Templates() {
-		name := tmpl.Name()
-		// Skip empty name (root template)
-		if name == "" {
-			continue
-		}
-		// Check if this is a root template (starts with "html/" and has no subdirectory)
-		if strings.HasPrefix(name, "html/") && !strings.Contains(name[len("html/"):], "/") {
-			shortName := name[len("html/"):]
-			rootTemplates = append(rootTemplates, struct {
-				fullName  string
-				shortName string
-			}{fullName: name, shortName: shortName})
-		}
-	}
-
-	// Now add aliases using Clone to preserve all template relationships
-	for _, rt := range rootTemplates {
-		if t.Lookup(rt.shortName) == nil {
-			// Get the original template
-			origTmpl := t.Lookup(rt.fullName)
-			if origTmpl != nil {
-				// Add the parse tree to the main template set with the short name
-				// This preserves all template relationships because we're adding to the same set
-				_, err := t.AddParseTree(rt.shortName, origTmpl.Tree)
-				if err != nil {
-					logger.Warning("Failed to add template alias:", rt.fullName, "->", rt.shortName, err)
-				} else {
-					logger.Info("Added template alias:", rt.fullName, "->", rt.shortName)
-				}
-			} else {
-				logger.Warning("Original template not found:", rt.fullName)
-			}
-		}
-	}
+	// Templates are already parsed with correct names (without "html/" prefix)
+	// This is because ParseFS uses file names as template names
+	// So "html/nodes.html" becomes "nodes.html" automatically
+	// No need to create aliases - templates already have the correct names
 
 	// Verify that required templates exist
 	requiredTemplates := []string{"nodes.html", "multi_subscriptions.html", "map.html", "index.html", "login.html"}
@@ -225,6 +186,13 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 			logger.Warning("Required template not found:", reqName)
 		} else {
 			logger.Info("Template found:", reqName)
+			// Try to execute the template to check for errors
+			var buf strings.Builder
+			testData := gin.H{"base_path": "/", "cur_ver": "test", "host": "test", "title": "test"}
+			err := t.ExecuteTemplate(&buf, reqName, testData)
+			if err != nil {
+				logger.Warning("Template execution test failed for", reqName, ":", err)
+			}
 		}
 	}
 
