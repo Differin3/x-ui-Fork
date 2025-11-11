@@ -25,7 +25,30 @@ func GetBinaryName() string {
 
 // GetBinaryPath returns the full path to the Xray binary executable.
 func GetBinaryPath() string {
-	return config.GetBinFolderPath() + "/" + GetBinaryName()
+	binaryName := GetBinaryName()
+	binaryPath := config.GetBinFolderPath() + "/" + binaryName
+
+	// Check if binary exists, if not try alternative names
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		// Try alternative naming conventions
+		binFolder := config.GetBinFolderPath()
+		alternatives := []string{
+			binaryName,
+			"xray-linux-amd64", // common fallback for amd64
+			"xray-linux-arm64", // common fallback for arm64
+			"xray-linux-arm",   // common fallback for arm
+			"xray",             // simple name
+		}
+
+		for _, alt := range alternatives {
+			altPath := binFolder + "/" + alt
+			if _, err := os.Stat(altPath); err == nil {
+				return altPath
+			}
+		}
+	}
+
+	return binaryPath
 }
 
 // GetConfigPath returns the path to the Xray configuration file in the binary folder.
@@ -243,7 +266,12 @@ func (p *process) Start() (err error) {
 		return common.NewErrorf("Failed to write configuration file: %v", err)
 	}
 
-	cmd := exec.Command(GetBinaryPath(), "-c", configPath)
+	binaryPath := GetBinaryPath()
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		return common.NewErrorf("Xray binary not found at %s. Please run 'x-ui repair' to download it.", binaryPath)
+	}
+
+	cmd := exec.Command(binaryPath, "-c", configPath)
 	p.cmd = cmd
 
 	cmd.Stdout = p.logWriter

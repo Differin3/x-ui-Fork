@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	_ "unsafe"
 
@@ -247,8 +248,8 @@ func updateTgbotSetting(tgBotToken string, tgBotChatid string, tgBotRuntime stri
 	}
 }
 
-// updateSetting updates various panel settings including port, credentials, base path, listen IP, and two-factor authentication.
-func updateSetting(port int, username string, password string, webBasePath string, listenIP string, resetTwoFactor bool) {
+// updateSetting updates various panel settings including port, credentials, base path, listen IP, webDomain, and two-factor authentication.
+func updateSetting(port int, username string, password string, webBasePath string, listenIP string, webDomain string, resetTwoFactor bool) {
 	err := database.InitDB(config.GetDBPath())
 	if err != nil {
 		fmt.Println("Database initialization failed:", err)
@@ -285,6 +286,27 @@ func updateSetting(port int, username string, password string, webBasePath strin
 		}
 	}
 
+	// Check if webDomain flag was provided (even if empty, to clear domain validation)
+	webDomainSet := false
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "-webDomain=") || arg == "-webDomain" {
+			webDomainSet = true
+			break
+		}
+	}
+	if webDomainSet {
+		err := settingService.SetWebDomain(webDomain)
+		if err != nil {
+			fmt.Println("Failed to set web domain:", err)
+		} else {
+			if webDomain == "" {
+				fmt.Println("Web domain cleared successfully (domain validation disabled)")
+			} else {
+				fmt.Printf("Web domain set successfully: %s\n", webDomain)
+			}
+		}
+	}
+
 	if resetTwoFactor {
 		err := settingService.SetTwoFactorEnable(false)
 
@@ -301,7 +323,7 @@ func updateSetting(port int, username string, password string, webBasePath strin
 		if err != nil {
 			fmt.Println("Failed to set listen IP:", err)
 		} else {
-			fmt.Printf("listen %v set successfully", listenIP)
+			fmt.Printf("listen %v set successfully\n", listenIP)
 		}
 	}
 }
@@ -413,6 +435,7 @@ func main() {
 	var password string
 	var webBasePath string
 	var listenIP string
+	var webDomain string
 	var getListen bool
 	var webCertFile string
 	var webKeyFile string
@@ -431,6 +454,7 @@ func main() {
 	settingCmd.StringVar(&password, "password", "", "Set login password")
 	settingCmd.StringVar(&webBasePath, "webBasePath", "", "Set base path for Panel")
 	settingCmd.StringVar(&listenIP, "listenIP", "", "set panel listenIP IP")
+	settingCmd.StringVar(&webDomain, "webDomain", "", "Set web domain (empty to disable domain validation)")
 	settingCmd.BoolVar(&resetTwoFactor, "resetTwoFactor", false, "Reset two-factor authentication settings")
 	settingCmd.BoolVar(&getListen, "getListen", false, "Display current panel listenIP IP")
 	settingCmd.BoolVar(&getCert, "getCert", false, "Display current certificate settings")
@@ -476,7 +500,7 @@ func main() {
 		if reset {
 			resetSetting()
 		} else {
-			updateSetting(port, username, password, webBasePath, listenIP, resetTwoFactor)
+			updateSetting(port, username, password, webBasePath, listenIP, webDomain, resetTwoFactor)
 		}
 		if show {
 			showSetting(show)

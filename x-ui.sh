@@ -214,26 +214,34 @@ delete_script() {
 }
 
 uninstall() {
-    confirm "Are you sure you want to uninstall the panel? xray will also uninstalled!" "n"
-    if [[ $? != 0 ]]; then
-        if [[ $# == 0 ]]; then
-            show_menu
+    # If called with "uninstall 0" or "uninstall --yes", skip confirmation
+    if [[ "$1" != "0" && "$1" != "--yes" ]]; then
+        confirm "Are you sure you want to uninstall the panel? xray will also uninstalled!" "n"
+        if [[ $? != 0 ]]; then
+            if [[ $# == 0 ]]; then
+                show_menu
+            fi
+            return 0
         fi
-        return 0
     fi
-    systemctl stop x-ui
-    systemctl disable x-ui
+    systemctl stop x-ui || true
+    systemctl disable x-ui || true
     rm /etc/systemd/system/x-ui.service -f
-    systemctl daemon-reload
-    systemctl reset-failed
+    systemctl daemon-reload || true
+    systemctl reset-failed || true
     rm /etc/x-ui/ -rf
     rm /usr/local/x-ui/ -rf
+    rm /usr/bin/x-ui -f
 
     echo ""
     echo -e "Uninstalled Successfully.\n"
     echo "If you need to install this panel again, you can use below command:"
     echo -e "${green}bash <(curl -Ls https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/install.sh)${plain}"
     echo ""
+    # Don't delete script if called from command line
+    if [[ "$1" == "0" || "$1" == "--yes" ]]; then
+        exit 0
+    fi
     # Trap the SIGTERM signal
     trap delete_script SIGTERM
     delete_script
@@ -283,6 +291,17 @@ reset_webbasepath() {
     echo -e "Web base path has been reset to: ${green}${config_webBasePath}${plain}"
     echo -e "${green}Please use the new web base path to access the panel.${plain}"
     restart
+}
+
+reset_webdomain() {
+    echo -e "${yellow}Clearing Web Domain (disabling domain validation)${plain}"
+    /usr/local/x-ui/x-ui setting -webDomain "" >/dev/null 2>&1
+    if [[ $? == 0 ]]; then
+        echo -e "${green}Web domain cleared successfully. Domain validation disabled.${plain}"
+        restart
+    else
+        LOGE "Failed to clear web domain"
+    fi
 }
 
 reset_config() {
@@ -1758,32 +1777,33 @@ show_menu() {
 │   ${green}6.${plain} Reset Username & Password & Secret Token  │
 │   ${green}7.${plain} Reset Web Base Path                       │
 │   ${green}8.${plain} Reset Settings                            │
-│   ${green}9.${plain} Change Port                               │
-│  ${green}10.${plain} View Current Settings                     │
+│   ${green}9.${plain} Clear Web Domain (disable validation)     │
+│  ${green}10.${plain} Change Port                               │
+│  ${green}11.${plain} View Current Settings                     │
 │────────────────────────────────────────────────│
-│  ${green}11.${plain} Start                                     │
-│  ${green}12.${plain} Stop                                      │
-│  ${green}13.${plain} Restart                                   │
-│  ${green}14.${plain} Check Status                              │
-│  ${green}15.${plain} Logs Management                           │
+│  ${green}12.${plain} Start                                     │
+│  ${green}13.${plain} Stop                                      │
+│  ${green}14.${plain} Restart                                   │
+│  ${green}15.${plain} Check Status                              │
+│  ${green}16.${plain} Logs Management                           │
 │────────────────────────────────────────────────│
-│  ${green}16.${plain} Enable Autostart                          │
-│  ${green}17.${plain} Disable Autostart                         │
+│  ${green}17.${plain} Enable Autostart                          │
+│  ${green}18.${plain} Disable Autostart                         │
 │────────────────────────────────────────────────│
-│  ${green}18.${plain} SSL Certificate Management                │
-│  ${green}19.${plain} Cloudflare SSL Certificate                │
-│  ${green}20.${plain} IP Limit Management                       │
-│  ${green}21.${plain} Firewall Management                       │
-│  ${green}22.${plain} SSH Port Forwarding Management            │
+│  ${green}19.${plain} SSL Certificate Management                │
+│  ${green}20.${plain} Cloudflare SSL Certificate                │
+│  ${green}21.${plain} IP Limit Management                       │
+│  ${green}22.${plain} Firewall Management                       │
+│  ${green}23.${plain} SSH Port Forwarding Management            │
 │────────────────────────────────────────────────│
-│  ${green}23.${plain} Enable BBR                                │
-│  ${green}24.${plain} Update Geo Files                          │
-│  ${green}25.${plain} Speedtest by Ookla                        │
-│  ${green}26.${plain} Repair (Xray/Translations)                │
+│  ${green}24.${plain} Enable BBR                                │
+│  ${green}25.${plain} Update Geo Files                          │
+│  ${green}26.${plain} Speedtest by Ookla                        │
+│  ${green}27.${plain} Repair (Xray/Translations)                │
 ╚────────────────────────────────────────────────╝
 "
     show_status
-    echo && read -p "Please enter your selection [0-26]: " num
+    echo && read -p "Please enter your selection [0-27]: " num
 
     case "${num}" in
     0)
@@ -1814,61 +1834,64 @@ show_menu() {
         check_install && reset_config
         ;;
     9)
-        check_install && set_port
+        check_install && reset_webdomain
         ;;
     10)
-        check_install && check_config
+        check_install && set_port
         ;;
     11)
-        check_install && start
+        check_install && check_config
         ;;
     12)
-        check_install && stop
+        check_install && start
         ;;
     13)
-        check_install && restart
+        check_install && stop
         ;;
     14)
-        check_install && status
+        check_install && restart
         ;;
     15)
-        check_install && show_log
+        check_install && status
         ;;
     16)
-        check_install && enable
+        check_install && show_log
         ;;
     17)
-        check_install && disable
+        check_install && enable
         ;;
     18)
-        ssl_cert_issue_main
+        check_install && disable
         ;;
     19)
-        ssl_cert_issue_CF
+        ssl_cert_issue_main
         ;;
     20)
-        iplimit_main
+        ssl_cert_issue_CF
         ;;
     21)
-        firewall_menu
+        iplimit_main
         ;;
     22)
-        SSH_port_forwarding
+        firewall_menu
         ;;
     23)
-        bbr_menu
+        SSH_port_forwarding
         ;;
     24)
-        update_geo
+        bbr_menu
         ;;
     25)
-        run_speedtest
+        update_geo
         ;;
     26)
+        run_speedtest
+        ;;
+    27)
         repair_runtime
         ;;
     *)
-        LOGE "Please enter the correct number [0-26]"
+        LOGE "Please enter the correct number [0-27]"
         ;;
     esac
 }

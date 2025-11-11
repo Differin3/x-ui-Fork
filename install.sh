@@ -333,20 +333,33 @@ install_x-ui() {
         
         # Download xray binary (try to get from releases or use existing)
         XRAY_ARCH=$(arch)
+        XRAY_PKG_ARCH=""
+        XRAY_BIN_NAME=""
         if [[ "${XRAY_ARCH}" == "armv5" || "${XRAY_ARCH}" == "armv6" || "${XRAY_ARCH}" == "armv7" ]]; then
-            XRAY_ARCH="arm32-v7a"
+            XRAY_PKG_ARCH="arm32-v7a"
+            XRAY_BIN_NAME="arm"
         elif [[ "${XRAY_ARCH}" == "arm64" || "${XRAY_ARCH}" == "aarch64" ]]; then
-            XRAY_ARCH="arm64-v8a"
+            XRAY_PKG_ARCH="arm64-v8a"
+            XRAY_BIN_NAME="arm64"
+        elif [[ "${XRAY_ARCH}" == "x86_64" || "${XRAY_ARCH}" == "amd64" ]]; then
+            XRAY_PKG_ARCH="64"
+            XRAY_BIN_NAME="amd64"
+        elif [[ "${XRAY_ARCH}" == "i386" || "${XRAY_ARCH}" == "i686" ]]; then
+            XRAY_PKG_ARCH="32"
+            XRAY_BIN_NAME="386"
+        else
+            XRAY_PKG_ARCH="64"
+            XRAY_BIN_NAME="amd64"
         fi
         
         XRAY_VERSION=$(curl -s --max-time 5 "https://api.github.com/repos/XTLS/Xray-core/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/v//')
         if [[ -n "${XRAY_VERSION}" ]]; then
             echo -e "${yellow}Downloading Xray ${XRAY_VERSION}...${plain}"
-            wget --inet4-only -q "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip" -O xray.zip
+            wget --inet4-only -q "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-${XRAY_PKG_ARCH}.zip" -O xray.zip
             if [[ $? -eq 0 ]]; then
                 unzip -q xray.zip -d /usr/local/x-ui/bin/
-                mv /usr/local/x-ui/bin/xray /usr/local/x-ui/bin/xray-linux-$(arch) 2>/dev/null || true
-                chmod +x /usr/local/x-ui/bin/xray-linux-$(arch)
+                mv /usr/local/x-ui/bin/xray /usr/local/x-ui/bin/xray-linux-${XRAY_BIN_NAME} 2>/dev/null || true
+                chmod +x /usr/local/x-ui/bin/xray-linux-${XRAY_BIN_NAME}
             fi
         fi
         
@@ -366,11 +379,31 @@ install_x-ui() {
 
     # Check the system's architecture and rename the file accordingly
     if [[ "${USE_BUILD_FROM_SOURCE}" != "true" ]]; then
-        if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
-            mv bin/xray-linux-$(arch) bin/xray-linux-arm
-            chmod +x bin/xray-linux-arm
+        ARCH_NAME=$(arch)
+        BIN_NAME=""
+        if [[ "${ARCH_NAME}" == "armv5" || "${ARCH_NAME}" == "armv6" || "${ARCH_NAME}" == "armv7" ]]; then
+            BIN_NAME="arm"
+            if [[ -f "bin/xray-linux-${ARCH_NAME}" ]]; then
+                mv bin/xray-linux-${ARCH_NAME} bin/xray-linux-${BIN_NAME}
+                chmod +x bin/xray-linux-${BIN_NAME}
+            fi
+        elif [[ "${ARCH_NAME}" == "arm64" || "${ARCH_NAME}" == "aarch64" ]]; then
+            BIN_NAME="arm64"
+        elif [[ "${ARCH_NAME}" == "x86_64" || "${ARCH_NAME}" == "amd64" ]]; then
+            BIN_NAME="amd64"
+            if [[ -f "bin/xray-linux-${ARCH_NAME}" ]]; then
+                mv bin/xray-linux-${ARCH_NAME} bin/xray-linux-${BIN_NAME}
+                chmod +x bin/xray-linux-${BIN_NAME}
+            fi
+        elif [[ "${ARCH_NAME}" == "i386" || "${ARCH_NAME}" == "i686" ]]; then
+            BIN_NAME="386"
+        else
+            BIN_NAME="amd64"
         fi
-        chmod +x x-ui bin/xray-linux-$(arch)
+        if [[ -f "bin/xray-linux-${BIN_NAME}" ]]; then
+            chmod +x bin/xray-linux-${BIN_NAME}
+        fi
+        chmod +x x-ui
     fi
 
     # Update x-ui cli and se set permission

@@ -278,6 +278,10 @@ func (s *SettingService) GetWebDomain() (string, error) {
 	return s.getString("webDomain")
 }
 
+func (s *SettingService) SetWebDomain(domain string) error {
+	return s.setString("webDomain", domain)
+}
+
 func (s *SettingService) GetTgBotToken() (string, error) {
 	return s.getString("tgBotToken")
 }
