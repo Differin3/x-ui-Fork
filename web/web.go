@@ -214,7 +214,21 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 				} else {
 					logger.Info("Added template alias:", rt.fullName, "->", rt.shortName)
 				}
+			} else {
+				logger.Warning("Original template not found for alias:", rt.fullName)
 			}
+		} else {
+			logger.Info("Template already exists with short name:", rt.shortName)
+		}
+	}
+
+	// Verify that templates can be found by short names
+	logger.Info("Verifying template lookup by short names:")
+	for _, reqName := range []string{"nodes.html", "multi_subscriptions.html", "map.html", "index.html", "xray.html", "inbounds.html"} {
+		if t.Lookup(reqName) == nil {
+			logger.Warning("Template NOT found by short name:", reqName)
+		} else {
+			logger.Info("Template found by short name:", reqName)
 		}
 	}
 
