@@ -81,8 +81,8 @@ func runWebServer() {
 
 			// --- FIX FOR TELEGRAM BOT CONFLICT (409): Stop bot before restart ---
 			service.StopBot()
-			// --			
-			
+			// --
+
 			err := server.Stop()
 			if err != nil {
 				logger.Debug("Error stopping web server:", err)
@@ -114,7 +114,7 @@ func runWebServer() {
 			// --- FIX FOR TELEGRAM BOT CONFLICT (409) on full shutdown ---
 			service.StopBot()
 			// ------------------------------------------------------------
-			
+
 			server.Stop()
 			subServer.Stop()
 			log.Println("Shutting down servers.")
@@ -154,6 +154,16 @@ func showSetting(show bool) {
 			fmt.Println("get webBasePath failed, error info:", err)
 		}
 
+		listenIP, err := settingService.GetListen()
+		if err != nil {
+			fmt.Println("get listenIP failed, error info:", err)
+		}
+
+		webDomain, err := settingService.GetWebDomain()
+		if err != nil {
+			fmt.Println("get webDomain failed, error info:", err)
+		}
+
 		certFile, err := settingService.GetCertFile()
 		if err != nil {
 			fmt.Println("get cert file failed, error info:", err)
@@ -187,6 +197,16 @@ func showSetting(show bool) {
 		fmt.Println("hasDefaultCredential:", hasDefaultCredential)
 		fmt.Println("port:", port)
 		fmt.Println("webBasePath:", webBasePath)
+		if listenIP != "" {
+			fmt.Println("listenIP:", listenIP)
+		} else {
+			fmt.Println("listenIP: (empty, listening on all interfaces)")
+		}
+		if webDomain != "" {
+			fmt.Println("webDomain:", webDomain, "(domain validation enabled)")
+		} else {
+			fmt.Println("webDomain: (empty, domain validation disabled)")
+		}
 	}
 }
 
