@@ -376,6 +376,9 @@ install_x-ui() {
     # Update x-ui cli and se set permission
     mv -f /usr/bin/x-ui-temp /usr/bin/x-ui
     chmod +x /usr/bin/x-ui
+
+    # Ensure runtime deps (xray binary, geo files) exist before first start
+    /usr/bin/x-ui repair >/dev/null 2>&1 || true
     config_after_install
 
     if [[ $release == "alpine" ]]; then
