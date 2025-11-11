@@ -143,43 +143,53 @@ func (s *Server) getHtmlFiles() ([]string, error) {
 // using the provided template function map and returns the resulting
 // template set for production usage.
 func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, error) {
-	t := template.New("").Funcs(funcMap)
-
-	// Parse all HTML files recursively
+	// Collect all HTML file paths
+	var templatePaths []string
 	err := fs.WalkDir(htmlFS, "html", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
 		if !d.IsDir() && strings.HasSuffix(path, ".html") {
-			// Extract filename from path (e.g., "html/nodes.html" -> "nodes.html")
-			// Gin expects template names without the "html/" prefix
-			parts := strings.Split(path, "/")
-			templateName := parts[len(parts)-1]
-
-			// Parse the file and name it correctly
-			content, err := fs.ReadFile(htmlFS, path)
-			if err != nil {
-				logger.Warning("Failed to read template:", path, err)
-				return nil
-			}
-
-			newT, err := t.New(templateName).Parse(string(content))
-			if err != nil {
-				// Log but don't fail on individual file errors
-				logger.Warning("Failed to parse template:", path, err)
-				return nil
-			}
-			t = newT
+			templatePaths = append(templatePaths, path)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return t, nil
+
+	// Parse all templates at once using ParseFS
+	// This ensures template includes work correctly
+	t, err := template.New("").Funcs(funcMap).ParseFS(htmlFS, templatePaths...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new template set with renamed templates (without "html/" prefix)
+	// Gin expects template names like "nodes.html", not "html/nodes.html"
+	result := template.New("").Funcs(funcMap)
+	for _, tmpl := range t.Templates() {
+		name := tmpl.Name()
+		// Skip empty name (root template)
+		if name == "" {
+			continue
+		}
+		// Extract filename from path (e.g., "html/nodes.html" -> "nodes.html")
+		parts := strings.Split(name, "/")
+		newName := parts[len(parts)-1]
+
+		// Add the template tree with the new name
+		_, err := result.AddParseTree(newName, tmpl.Tree)
+		if err != nil {
+			logger.Warning("Failed to add template:", name, "->", newName, err)
+			continue
+		}
+	}
+
+	return result, nil
 }
 
+// initRouter
 // initRouter initializes Gin, registers middleware, templates, static
 // assets, controllers and returns the configured engine.
 func (s *Server) initRouter() (*gin.Engine, error) {
