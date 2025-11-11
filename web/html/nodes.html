@@ -69,7 +69,9 @@
     </a-layout-content>
   </a-layout>
 </a-layout>
-
+{{template "page/body_scripts" .}}
+{{template "component/aSidebar" .}}
+{{template "component/aThemeSwitch" .}}
 <script>
   new Vue({
     delimiters: ['[[', ']]'],
@@ -233,8 +235,5 @@
     mounted(){ this.refresh(); }
   })
 </script>
-{{template "page/body_scripts" .}}
-{{template "component/aSidebar" .}}
-{{template "component/aThemeSwitch" .}}
 
 {{ template "page/body_end" .}}
