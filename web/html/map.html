@@ -39,7 +39,6 @@
     el: '#app',
     mixins: [MediaQueryMixin],
     data: {
-      themeSwitcher,
       loadingStates: { spinning: false, },
       loadingTip: '{{ i18n "loading"}}',
       nodes: [],
@@ -57,7 +56,7 @@
         }
       },
       tileUrl() {
-        const isDark = this.themeSwitcher.isDarkTheme;
+        const isDark = themeSwitcher.isDarkTheme;
         // Carto tiles: light vs dark to match panel themes
         return isDark
           ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -184,8 +183,13 @@
         return String(s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
       }
     },
+    computed: {
+      currentTheme() {
+        return themeSwitcher.currentTheme;
+      }
+    },
     watch: {
-      'themeSwitcher.currentTheme'(){
+      currentTheme(){
         // Re-render tiles to match theme
         this.renderMap();
       }
