@@ -38,6 +38,13 @@
 {{end}}
 
 {{define "component/aThemeSwitch"}}
+<!-- Theme switch templates -->
+<script type="text/x-template" id="theme-switch-template">
+{{template "component/themeSwitchTemplate" .}}
+</script>
+<script type="text/x-template" id="theme-switch-login-template">
+{{template "component/themeSwitchTemplateLogin" .}}
+</script>
 <script>
   function createThemeSwitcher() {
     const isDarkTheme = localStorage.getItem('dark-mode') === 'true';
@@ -108,8 +115,30 @@
   // Ensure Vue is available before registering components
   if (typeof Vue !== 'undefined') {
     try {
+      // Get template content from script tags
+      const themeSwitchTemplateEl = document.getElementById('theme-switch-template');
+      const themeSwitchLoginTemplateEl = document.getElementById('theme-switch-login-template');
+      
+      if (!themeSwitchTemplateEl) {
+        console.error('Theme switch template element not found');
+      }
+      if (!themeSwitchLoginTemplateEl) {
+        console.error('Theme switch login template element not found');
+      }
+      if (themeSwitchTemplateEl) {
+        console.log('Theme switch template found, content length:', themeSwitchTemplateEl.innerHTML.length);
+      }
+      
+      // Extract content from <template> tag if present
+      function extractTemplateContent(html) {
+        if (!html) return '';
+        // Remove <template> tags and get inner content
+        const match = html.match(/<template[^>]*>([\s\S]*)<\/template>/);
+        return match ? match[1].trim() : html.trim();
+      }
+      
       Vue.component('a-theme-switch', {
-        template: `{{template "component/themeSwitchTemplate"}}`,
+        template: extractTemplateContent(themeSwitchTemplateEl ? themeSwitchTemplateEl.innerHTML : ''),
         data: () => ({
           themeSwitcher
         }),
@@ -124,7 +153,7 @@
         }
       });
       Vue.component('a-theme-switch-login', {
-        template: `{{template "component/themeSwitchTemplateLogin"}}`,
+        template: extractTemplateContent(themeSwitchLoginTemplateEl ? themeSwitchLoginTemplateEl.innerHTML : ''),
         data: () => ({
           themeSwitcher
         }),
