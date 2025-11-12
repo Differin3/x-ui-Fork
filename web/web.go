@@ -242,6 +242,16 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 
 	// Verify that required templates exist and can be executed
 	requiredTemplates := []string{"nodes.html", "multi_subscriptions.html", "map.html", "index.html", "login.html"}
+	// Also verify component templates are available
+	componentTemplates := []string{"component/aSidebar", "component/aThemeSwitch", "component/themeSwitchTemplate"}
+	for _, compName := range componentTemplates {
+		if t.Lookup(compName) == nil {
+			logger.Warning("Component template not found:", compName)
+		} else {
+			logger.Info("Component template found:", compName)
+		}
+	}
+
 	for _, reqName := range requiredTemplates {
 		if t.Lookup(reqName) == nil {
 			logger.Warning("Required template not found:", reqName)
@@ -264,6 +274,19 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 				logger.Info("Template execution test passed for", reqName, "output length:", buf.Len())
 				if buf.Len() == 0 {
 					logger.Warning("Template", reqName, "executed but produced empty output!")
+				}
+				// For problematic templates, check if component templates are included in output
+				if reqName == "nodes.html" || reqName == "multi_subscriptions.html" || reqName == "map.html" {
+					output := buf.String()
+					if !strings.Contains(output, "a-theme-switch") {
+						logger.Warning("Template", reqName, "output does not contain 'a-theme-switch' component")
+					}
+					if !strings.Contains(output, "a-sidebar") {
+						logger.Warning("Template", reqName, "output does not contain 'a-sidebar' component")
+					}
+					if !strings.Contains(output, "Vue.component") {
+						logger.Warning("Template", reqName, "output does not contain 'Vue.component' registration")
+					}
 				}
 			}
 		}
