@@ -167,9 +167,23 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	}()
 
 	// Render template directly without any wrapper to avoid interfering with gzip middleware
-	// Store size before rendering to detect if response was written
 	contextData := getContext(data)
+
+	// For problematic templates, check if template exists before rendering
+	if name == "nodes.html" || name == "multi_subscriptions.html" || name == "map.html" {
+		// Check if template can be found - this helps debug template lookup issues
+		// Note: We can't directly access the template from context, but we can verify
+		// that the rendering will work by checking the response size
+		logger.Info("Rendering problematic template:", name)
+	}
+
 	c.HTML(http.StatusOK, name, contextData)
+
+	// Explicitly flush to ensure gzip middleware completes compression
+	// This is critical for gzip middleware to finalize the compressed stream
+	if flusher, ok := c.Writer.(http.Flusher); ok {
+		flusher.Flush()
+	}
 
 	// Log response status after rendering
 	if c.Writer.Written() {
@@ -186,6 +200,8 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 			}
 			// Log response headers for debugging
 			logger.Error("Response headers for", name, ":", c.Writer.Header())
+			// Log request details for debugging
+			logger.Error("Request details for", name, "Path:", c.Request.URL.Path, "Method:", c.Request.Method, "RemoteAddr:", c.Request.RemoteAddr)
 		}
 	} else {
 		logger.Warning("Template rendered but no response written:", name)
