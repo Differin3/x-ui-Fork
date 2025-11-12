@@ -51,12 +51,24 @@
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
-  new Vue({
-    delimiters: ['[[', ']]'],
-    el: '#app',
-    mixins: [MediaQueryMixin],
-    data: {
-      themeSwitcher,
+  // Ensure Vue and required dependencies are available
+  if (typeof Vue === 'undefined') {
+    console.error('Vue is not loaded');
+  }
+  if (typeof MediaQueryMixin === 'undefined') {
+    console.error('MediaQueryMixin is not loaded');
+  }
+  if (typeof themeSwitcher === 'undefined') {
+    console.error('themeSwitcher is not defined');
+  }
+  
+  try {
+    new Vue({
+      delimiters: ['[[', ']]'],
+      el: '#app',
+      mixins: [MediaQueryMixin],
+      data: {
+        themeSwitcher,
       loadingStates: { spinning: false, },
       loadingTip: '{{ i18n "loading"}}',
       items: [],
@@ -161,7 +173,16 @@
       }
     },
     mounted(){ this.refresh(); }
-  })
+  });
+  } catch (e) {
+    console.error('Error initializing Vue app:', e);
+    // Remove v-cloak to show content even if Vue fails
+    const app = document.getElementById('app');
+    if (app) {
+      app.removeAttribute('v-cloak');
+      app.style.display = 'block';
+    }
+  }
 </script>
 
 {{ template "page/body_end" .}}

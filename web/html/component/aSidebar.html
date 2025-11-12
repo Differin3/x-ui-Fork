@@ -40,7 +40,10 @@
 <script>
     const SIDEBAR_COLLAPSED_KEY = "isSidebarCollapsed"
 
-    Vue.component('a-sidebar', {
+    // Ensure Vue is available before registering components
+    if (typeof Vue !== 'undefined') {
+      try {
+        Vue.component('a-sidebar', {
         data() {
             return {
                 tabs: [
@@ -89,7 +92,14 @@
                     '{{ .request_uri }}'
                 ],
                 visible: false,
-                collapsed: JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY)),
+                collapsed: (function() {
+                    try {
+                        const val = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+                        return val ? JSON.parse(val) : false;
+                    } catch (e) {
+                        return false;
+                    }
+                })(),
             }
         },
         methods: {
@@ -106,13 +116,23 @@
             },
             collapseHandle(collapsed, type) {
                 if (type === "clickTrigger") {
-                    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed);
-
-                    this.collapsed = JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY));
+                    try {
+                        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, JSON.stringify(collapsed));
+                        this.collapsed = collapsed;
+                    } catch (e) {
+                        console.error('Error saving sidebar state:', e);
+                        this.collapsed = collapsed;
+                    }
                 }
             }
         },
         template: `{{template "component/sidebar/content"}}`,
-    });
+        });
+      } catch (e) {
+        console.error('Error registering Vue sidebar component:', e);
+      }
+    } else {
+      console.error('Vue is not available when trying to register sidebar component');
+    }
 </script>
 {{end}}

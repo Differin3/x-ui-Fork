@@ -283,8 +283,27 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 					hasVueComponent := strings.Contains(output, "Vue.component")
 					hasVueInit := strings.Contains(output, "new Vue({") || strings.Contains(output, "const app = new Vue({")
 					hasScripts := strings.Contains(output, "vue.min.js") && strings.Contains(output, "antd.min.js")
+					hasThemeSwitcher := strings.Contains(output, "const themeSwitcher") || strings.Contains(output, "themeSwitcher = createThemeSwitcher()")
 
-					logger.Info("Template", reqName, "component check - themeSwitch:", hasThemeSwitch, "sidebar:", hasSidebar, "Vue.component:", hasVueComponent, "Vue.init:", hasVueInit, "scripts:", hasScripts)
+					logger.Info("Template", reqName, "component check - themeSwitch:", hasThemeSwitch, "sidebar:", hasSidebar, "Vue.component:", hasVueComponent, "Vue.init:", hasVueInit, "scripts:", hasScripts, "themeSwitcher:", hasThemeSwitcher)
+
+					// Check for potential JavaScript syntax errors
+					// Look for themeSwitcher definition before Vue initialization
+					vueInitIdx := strings.Index(output, "new Vue({")
+					if vueInitIdx > 0 {
+						// Check if themeSwitcher is defined before Vue init
+						beforeVue := output[:vueInitIdx]
+						if !strings.Contains(beforeVue, "const themeSwitcher") && !strings.Contains(beforeVue, "themeSwitcher = createThemeSwitcher()") {
+							logger.Warning("Template", reqName, "themeSwitcher may not be defined before Vue initialization")
+						}
+						// Check if Vue.component registrations are before Vue init
+						if !strings.Contains(beforeVue, "Vue.component('a-theme-switch'") {
+							logger.Warning("Template", reqName, "Vue.component('a-theme-switch') may not be registered before Vue initialization")
+						}
+						if !strings.Contains(beforeVue, "Vue.component('a-sidebar'") {
+							logger.Warning("Template", reqName, "Vue.component('a-sidebar') may not be registered before Vue initialization")
+						}
+					}
 
 					// Check for potential JavaScript syntax errors in component templates
 					// Look for unclosed template strings or broken JavaScript
@@ -331,6 +350,9 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 					}
 					if !hasScripts {
 						logger.Warning("Template", reqName, "output does not contain required script tags")
+					}
+					if !hasThemeSwitcher {
+						logger.Warning("Template", reqName, "output does not contain 'themeSwitcher' definition")
 					}
 				}
 			}

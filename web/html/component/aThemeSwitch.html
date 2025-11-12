@@ -46,27 +46,34 @@
       document.documentElement.setAttribute('data-theme', 'ultra-dark');
     }
     const theme = isDarkTheme ? 'dark' : 'light';
-    document.querySelector('body').setAttribute('class', theme);
+    const body = document.querySelector('body');
+    if (body) {
+      body.setAttribute('class', theme);
+    }
     return {
       animationsOff() {
         document.documentElement.setAttribute('data-theme-animations', 'off');
         const themeAnimations = document.querySelector('#change-theme');
-        themeAnimations.addEventListener('mouseleave', () => {
-          document.documentElement.removeAttribute('data-theme-animations');
-        });
-        themeAnimations.addEventListener('touchend', () => {
-          document.documentElement.removeAttribute('data-theme-animations');
-        });
+        if (themeAnimations) {
+          themeAnimations.addEventListener('mouseleave', () => {
+            document.documentElement.removeAttribute('data-theme-animations');
+          });
+          themeAnimations.addEventListener('touchend', () => {
+            document.documentElement.removeAttribute('data-theme-animations');
+          });
+        }
       },
       animationsOffUltra() {
         document.documentElement.setAttribute('data-theme-animations', 'off');
         const themeAnimationsUltra = document.querySelector('#change-theme-ultra');
-        themeAnimationsUltra.addEventListener('mouseleave', () => {
-          document.documentElement.removeAttribute('data-theme-animations');
-        });
-        themeAnimationsUltra.addEventListener('touchend', () => {
-          document.documentElement.removeAttribute('data-theme-animations');
-        });
+        if (themeAnimationsUltra) {
+          themeAnimationsUltra.addEventListener('mouseleave', () => {
+            document.documentElement.removeAttribute('data-theme-animations');
+          });
+          themeAnimationsUltra.addEventListener('touchend', () => {
+            document.documentElement.removeAttribute('data-theme-animations');
+          });
+        }
       },
       isDarkTheme,
       isUltra,
@@ -76,8 +83,14 @@
       toggleTheme() {
         this.isDarkTheme = !this.isDarkTheme;
         localStorage.setItem('dark-mode', this.isDarkTheme);
-        document.querySelector('body').setAttribute('class', this.isDarkTheme ? 'dark' : 'light');
-        document.getElementById('message').className = themeSwitcher.currentTheme;
+        const body = document.querySelector('body');
+        if (body) {
+          body.setAttribute('class', this.isDarkTheme ? 'dark' : 'light');
+        }
+        const messageEl = document.getElementById('message');
+        if (messageEl) {
+          messageEl.className = themeSwitcher.currentTheme;
+        }
       },
       toggleUltra() {
         this.isUltra = !this.isUltra;
@@ -91,29 +104,45 @@
     };
   }
   const themeSwitcher = createThemeSwitcher();
-  Vue.component('a-theme-switch', {
-    template: `{{template "component/themeSwitchTemplate"}}`,
-    data: () => ({
-      themeSwitcher
-    }),
-    mounted() {
-      this.$message.config({
-        getContainer: () => document.getElementById('message')
+  
+  // Ensure Vue is available before registering components
+  if (typeof Vue !== 'undefined') {
+    try {
+      Vue.component('a-theme-switch', {
+        template: `{{template "component/themeSwitchTemplate"}}`,
+        data: () => ({
+          themeSwitcher
+        }),
+        mounted() {
+          const messageEl = document.getElementById('message');
+          if (messageEl && this.$message) {
+            this.$message.config({
+              getContainer: () => messageEl
+            });
+            messageEl.className = themeSwitcher.currentTheme;
+          }
+        }
       });
-      document.getElementById('message').className = themeSwitcher.currentTheme;
-    }
-  });
-  Vue.component('a-theme-switch-login', {
-    template: `{{template "component/themeSwitchTemplateLogin"}}`,
-    data: () => ({
-      themeSwitcher
-    }),
-    mounted() {
-      this.$message.config({
-        getContainer: () => document.getElementById('message')
+      Vue.component('a-theme-switch-login', {
+        template: `{{template "component/themeSwitchTemplateLogin"}}`,
+        data: () => ({
+          themeSwitcher
+        }),
+        mounted() {
+          const messageEl = document.getElementById('message');
+          if (messageEl && this.$message) {
+            this.$message.config({
+              getContainer: () => messageEl
+            });
+            messageEl.className = themeSwitcher.currentTheme;
+          }
+        }
       });
-      document.getElementById('message').className = themeSwitcher.currentTheme;
+    } catch (e) {
+      console.error('Error registering Vue components:', e);
     }
-  });
+  } else {
+    console.error('Vue is not available when trying to register theme switch components');
+  }
 </script>
 {{end}}
