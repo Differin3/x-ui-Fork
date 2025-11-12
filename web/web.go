@@ -286,6 +286,37 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 
 					logger.Info("Template", reqName, "component check - themeSwitch:", hasThemeSwitch, "sidebar:", hasSidebar, "Vue.component:", hasVueComponent, "Vue.init:", hasVueInit, "scripts:", hasScripts)
 
+					// Check for potential JavaScript syntax errors in component templates
+					// Look for unclosed template strings or broken JavaScript
+					if strings.Contains(output, "Vue.component('a-theme-switch'") {
+						// Find the template string content
+						themeSwitchIdx := strings.Index(output, "Vue.component('a-theme-switch'")
+						if themeSwitchIdx > 0 {
+							// Look for the template property
+							templateStart := strings.Index(output[themeSwitchIdx:], "template: `")
+							if templateStart > 0 {
+								templateStart += themeSwitchIdx + len("template: `")
+								// Find the closing backtick
+								templateEnd := strings.Index(output[templateStart:], "`")
+								if templateEnd > 0 {
+									templateContent := output[templateStart : templateStart+templateEnd]
+									// Check if template content looks valid
+									if strings.Contains(templateContent, "<template>") && strings.Contains(templateContent, "</template>") {
+										logger.Info("Template", reqName, "themeSwitch template content looks valid")
+									} else {
+										previewLen := 200
+										if len(templateContent) < previewLen {
+											previewLen = len(templateContent)
+										}
+										logger.Warning("Template", reqName, "themeSwitch template content may be broken:", templateContent[:previewLen])
+									}
+								} else {
+									logger.Warning("Template", reqName, "themeSwitch template string may not be closed properly")
+								}
+							}
+						}
+					}
+
 					if !hasThemeSwitch {
 						logger.Warning("Template", reqName, "output does not contain 'a-theme-switch' component")
 					}
