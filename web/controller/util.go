@@ -169,11 +169,8 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	// Render template directly without any wrapper to avoid interfering with gzip middleware
 	contextData := getContext(data)
 
-	// For problematic templates, check if template exists before rendering
+	// For problematic templates, log rendering
 	if name == "nodes.html" || name == "multi_subscriptions.html" || name == "map.html" {
-		// Check if template can be found - this helps debug template lookup issues
-		// Note: We can't directly access the template from context, but we can verify
-		// that the rendering will work by checking the response size
 		logger.Info("Rendering problematic template:", name)
 	}
 

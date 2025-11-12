@@ -372,7 +372,15 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	engine.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{basePath + "panel/api/"})))
+	// Exclude problematic pages from gzip compression for debugging
+	// This helps us see the actual HTML content being sent
+	excludedPaths := []string{
+		basePath + "panel/api/",
+		basePath + "panel/nodes",
+		basePath + "panel/multi-subscriptions",
+		basePath + "panel/map",
+	}
+	engine.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths(excludedPaths)))
 	assetsBasePath := basePath + "assets/"
 
 	store := cookie.NewStore(secret)
