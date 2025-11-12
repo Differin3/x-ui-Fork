@@ -162,29 +162,23 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 		}
 	}()
 
-	// Store initial state before rendering
-	initialSize := c.Writer.Size()
-
-	// Render template directly without wrapper to avoid interfering with gzip middleware
+	// Render template directly without any wrapper to avoid interfering with gzip middleware
+	// The wrapper was causing issues with gzip compression completion
 	c.HTML(http.StatusOK, name, getContext(data))
-
-	// Ensure response is flushed to client
-	c.Writer.Flush()
 
 	// Log response status after rendering
 	if c.Writer.Written() {
 		size := c.Writer.Size()
 		contentEncoding := c.Writer.Header().Get("Content-Encoding")
 		contentType := c.Writer.Header().Get("Content-Type")
-		logger.Info("Template rendered successfully:", name, "status:", c.Writer.Status(), "size:", size, "initialSize:", initialSize, "Content-Encoding:", contentEncoding, "Content-Type:", contentType)
-		if size < 100 && size > initialSize {
-			logger.Error("Template", name, "rendered suspiciously small content:", size, "bytes - possible gzip compression issue or response interception")
+		logger.Info("Template rendered successfully:", name, "status:", c.Writer.Status(), "size:", size, "Content-Encoding:", contentEncoding, "Content-Type:", contentType)
+
+		if size < 100 {
+			logger.Warning("Template", name, "rendered suspiciously small content:", size, "bytes")
 			// Check if response was aborted
 			if c.IsAborted() {
 				logger.Error("Request was aborted for template:", name)
 			}
-			// Log all response headers for debugging
-			logger.Error("Response headers for", name, ":", c.Writer.Header())
 		}
 	} else {
 		logger.Warning("Template rendered but no response written:", name)
