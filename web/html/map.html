@@ -225,10 +225,42 @@
     },
     mounted(){ 
       console.log('Vue app mounted successfully');
+      console.log('Vue $el:', vueApp.$el);
+      console.log('Vue $el type:', vueApp.$el ? vueApp.$el.nodeType : 'null');
+      console.log('Vue $el tagName:', vueApp.$el ? vueApp.$el.tagName : 'null');
+      
+      // Force remove v-cloak to ensure content is visible
+      const appElement = document.getElementById('app');
+      if (appElement) {
+        appElement.removeAttribute('v-cloak');
+        console.log('Removed v-cloak attribute from #app');
+        // Also ensure it's visible
+        if (appElement.style.display === 'none') {
+          appElement.style.display = '';
+          console.log('Removed display:none from #app');
+        }
+      }
+      
       this.refresh(); 
     }
   });
   console.log('Vue app instance created:', vueApp);
+  
+  // Additional check after a short delay
+  setTimeout(() => {
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      if (appElement.hasAttribute('v-cloak')) {
+        console.warn('v-cloak still present after mount, removing it');
+        appElement.removeAttribute('v-cloak');
+      }
+      const computedStyle = window.getComputedStyle(appElement);
+      if (computedStyle.display === 'none') {
+        console.warn('Element #app is still hidden, forcing display');
+        appElement.style.display = '';
+      }
+    }
+  }, 100);
   } catch (e) {
     console.error('Error initializing Vue app:', e);
     console.error('Error stack:', e.stack);

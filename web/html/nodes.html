@@ -95,13 +95,33 @@
   const appEl = document.getElementById('app');
   if (!appEl) {
     console.error('Element #app not found!');
+    console.error('Document ready state:', document.readyState);
+    console.error('Document body:', document.body);
+    // Try to wait for DOM
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded fired, retrying Vue initialization');
+        // This will be handled by the code below
+      });
+    }
   } else {
     console.log('Element #app found');
+    console.log('Element #app tagName:', appEl.tagName);
+    console.log('Element #app className:', appEl.className);
+    console.log('Element #app has v-cloak:', appEl.hasAttribute('v-cloak'));
   }
   
-  try {
-    console.log('Initializing Vue app...');
-    const vueApp = new Vue({
+  // Ensure DOM is ready
+  function initVueApp() {
+    const appElement = document.getElementById('app');
+    if (!appElement) {
+      console.error('Cannot initialize Vue: #app element not found');
+      return;
+    }
+  
+    try {
+      console.log('Initializing Vue app...');
+      const vueApp = new Vue({
       delimiters: ['[[', ']]'],
       el: '#app',
       mixins: [MediaQueryMixin],
@@ -262,11 +282,43 @@
     },
     mounted(){ 
       console.log('Vue app mounted successfully');
+      console.log('Vue $el:', vueApp.$el);
+      console.log('Vue $el type:', vueApp.$el ? vueApp.$el.nodeType : 'null');
+      console.log('Vue $el tagName:', vueApp.$el ? vueApp.$el.tagName : 'null');
+      
+      // Force remove v-cloak to ensure content is visible
+      const appElement = document.getElementById('app');
+      if (appElement) {
+        appElement.removeAttribute('v-cloak');
+        console.log('Removed v-cloak attribute from #app');
+        // Also ensure it's visible
+        if (appElement.style.display === 'none') {
+          appElement.style.display = '';
+          console.log('Removed display:none from #app');
+        }
+      }
+      
       this.refresh(); 
     }
   });
   console.log('Vue app instance created:', vueApp);
-  } catch (e) {
+  
+  // Additional check after a short delay
+  setTimeout(() => {
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      if (appElement.hasAttribute('v-cloak')) {
+        console.warn('v-cloak still present after mount, removing it');
+        appElement.removeAttribute('v-cloak');
+      }
+      const computedStyle = window.getComputedStyle(appElement);
+      if (computedStyle.display === 'none') {
+        console.warn('Element #app is still hidden, forcing display');
+        appElement.style.display = '';
+      }
+    }
+  }, 100);
+    } catch (e) {
     console.error('Error initializing Vue app:', e);
     console.error('Error stack:', e.stack);
     // Remove v-cloak to show content even if Vue fails
@@ -276,6 +328,14 @@
       app.style.display = 'block';
       console.log('Removed v-cloak from #app');
     }
+    }
+  }
+  
+  // Initialize Vue when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVueApp);
+  } else {
+    initVueApp();
   }
 </script>
 
