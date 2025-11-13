@@ -25,10 +25,55 @@
               <a-table-column :title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
               <a-table-column :title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
               <a-table-column :title='{{ i18n "pages.nodes.port"}}' data-index="port" key="port"/>
-              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status" :customRender="(_, r)=> statusTpl(r)"/>
-              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck" :customRender="(_, r)=> lastCheckTpl(r)"/>
+              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status">
+                <template slot-scope="text, record">
+                  <a-tooltip :title="getStatusTooltip(record)">
+                    <a-tag :color="getStatusColor(record.status)">
+                      <a-icon :type="getStatusIcon(record.status)" style="margin-right: 4px"/>
+                      [[ getStatusLabel(record.status) ]]
+                    </a-tag>
+                  </a-tooltip>
+                </template>
+              </a-table-column>
+              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck">
+                <template slot-scope="text, record">
+                  <span>[[ formatCheckTime(record.lastCheck) ]]</span>
+                </template>
+              </a-table-column>
               <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
-              <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action" :customRender="(_, r)=> actionTpl(r)"/>
+              <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action">
+                <template slot-scope="text, record">
+                  <a-space>
+                    <a-tooltip :title="$t('edit')">
+                      <a-button type="link" size="small" @click="openEdit(record)">
+                        <a-icon type="edit"/>
+                        <span style="margin-left: 4px">[[ $t('edit') ]]</span>
+                      </a-button>
+                    </a-tooltip>
+                    <a-divider type="vertical"/>
+                    <a-tooltip :title="$t('pages.nodes.check')">
+                      <a-button type="link" size="small" @click="check(record)">
+                        <a-icon type="check-circle"/>
+                        <span style="margin-left: 4px">[[ $t('pages.nodes.check') ]]</span>
+                      </a-button>
+                    </a-tooltip>
+                    <a-divider type="vertical"/>
+                    <a-tooltip :title="$t('pages.nodes.sync')">
+                      <a-button type="link" size="small" @click="sync(record)">
+                        <a-icon type="sync"/>
+                        <span style="margin-left: 4px">[[ $t('pages.nodes.sync') ]]</span>
+                      </a-button>
+                    </a-tooltip>
+                    <a-divider type="vertical"/>
+                    <a-popconfirm :title="$t('deleteConfirm')" :ok-text="$t('yes')" :cancel-text="$t('no')" @confirm="del(record)">
+                      <a-button type="link" size="small" danger slot="default">
+                        <a-icon type="delete"/>
+                        <span style="margin-left: 4px">[[ $t('delete') ]]</span>
+                      </a-button>
+                    </a-popconfirm>
+                  </a-space>
+                </template>
+              </a-table-column>
             </a-table>
           </a-col>
         </a-row>
@@ -124,7 +169,17 @@
         if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
         else { this.$message.error(this.$t('validation.saveFailed')); }
       },
-      async del(r){ const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete'); if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); } this.refresh(); },
+      async del(r){
+        this.$confirm({
+          title: this.$t('deleteConfirm'),
+          content: this.$t('deleteConfirmDesc'),
+          onOk: async () => {
+            const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete');
+            if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); }
+            this.refresh();
+          }
+        });
+      },
       async check(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/check'); this.refresh(); },
       async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
       async detectLocation(){
@@ -152,74 +207,38 @@
           this.detectingLocation = false;
         }
       },
-      actionTpl(r){
-        return this.$createElement('span', [
-          this.$createElement('a-tooltip', { props: { title: this.$t('edit') || 'Edit' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.openEdit(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'edit' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('edit') || 'Edit')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.check') || 'Check Status' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.check(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'check-circle' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.check') || 'Check')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.sync') || 'Sync Stats' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.sync(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'sync' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.sync') || 'Sync')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-popconfirm', {
-            props: {
-              title: this.$t('deleteConfirm') || 'Are you sure?',
-              okText: this.$t('yes') || 'Yes',
-              cancelText: this.$t('no') || 'No'
-            },
-            on: { confirm: () => this.del(r) }
-          }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small', danger: true }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'delete' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('delete') || 'Delete')
-            ])
-          ])
-        ]);
+      getStatusColor(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'online') return 'green';
+        if (s === 'offline') return 'red';
+        if (s === 'error') return 'orange';
+        return 'default';
       },
-      statusTpl(r){
+      getStatusIcon(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'online') return 'check-circle';
+        if (s === 'offline') return 'close-circle';
+        if (s === 'error') return 'exclamation-circle';
+        return 'question-circle';
+      },
+      getStatusLabel(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'online') return this.$t('pages.nodes.statusOnline');
+        if (s === 'offline') return this.$t('pages.nodes.statusOffline');
+        if (s === 'error') return this.$t('pages.nodes.statusError');
+        return this.$t('pages.nodes.statusUnknown');
+      },
+      getStatusTooltip(r) {
         const status = (r.status || '').toLowerCase();
-        const map = {
-          online: { color: 'green', icon: 'check-circle', label: this.$t('pages.nodes.statusOnline'), tip: this.$t('pages.nodes.statusTooltipOnline') },
-          offline: { color: 'red', icon: 'close-circle', label: this.$t('pages.nodes.statusOffline'), tip: this.$t('pages.nodes.statusTooltipOffline') },
-          error: { color: 'orange', icon: 'exclamation-circle', label: this.$t('pages.nodes.statusError'), tip: this.$t('pages.nodes.statusTooltipError') },
-          unknown: { color: 'default', icon: 'question-circle', label: this.$t('pages.nodes.statusUnknown'), tip: this.$t('pages.nodes.statusTooltipUnknown') },
-        };
-        const info = map[status] || map.unknown;
-        const title = info.tip + (r.lastCheck ? `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}` : '');
-        const tag = this.$createElement('a-tag', { props: { color: info.color } }, [
-          this.$createElement('a-icon', { props: { type: info.icon }, style: 'margin-right: 4px' }),
-          info.label
-        ]);
-        return this.$createElement('a-tooltip', { props: { title } }, [tag]);
-      },
-      lastCheckTpl(r){
-        if(!r.lastCheck){ return this.$createElement('span', this.$t('pages.nodes.statusUnknown')); }
-        return this.$createElement('span', this.formatCheckTime(r.lastCheck));
+        let tip = '';
+        if (status === 'online') tip = this.$t('pages.nodes.statusTooltipOnline');
+        else if (status === 'offline') tip = this.$t('pages.nodes.statusTooltipOffline');
+        else if (status === 'error') tip = this.$t('pages.nodes.statusTooltipError');
+        else tip = this.$t('pages.nodes.statusTooltipUnknown');
+        if (r.lastCheck) {
+          tip += `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}`;
+        }
+        return tip;
       },
       formatCheckTime(ts){
         if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
