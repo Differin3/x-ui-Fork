@@ -1750,6 +1750,7 @@ show_usage() {
 │  ${blue}x-ui restart${plain}      - Restart                          │
 │  ${blue}x-ui status${plain}       - Current Status                   │
 │  ${blue}x-ui settings${plain}     - Current Settings                 │
+│  ${blue}x-ui settings -port PORT${plain} - Change Panel Port          │
 │  ${blue}x-ui enable${plain}       - Enable Autostart on OS Startup   │
 │  ${blue}x-ui disable${plain}      - Disable Autostart on OS Startup  │
 │  ${blue}x-ui log${plain}          - Check logs                       │
@@ -2010,7 +2011,25 @@ if [[ $# > 0 ]]; then
         check_install 0 && status 0
         ;;
     "settings")
-        check_install 0 && check_config 0
+        check_install 0
+        if [[ "$2" == "-port" || "$2" == "--port" ]]; then
+            if [[ -z "$3" ]]; then
+                LOGE "Port number is required. Usage: x-ui settings -port <port>"
+                exit 1
+            fi
+            port="$3"
+            if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+                LOGE "Invalid port number. Port must be between 1 and 65535"
+                exit 1
+            fi
+            /usr/local/x-ui/x-ui setting -port "${port}"
+            LOGI "Port set to ${port}. Restarting panel..."
+            systemctl restart x-ui
+            sleep 2
+            check_config 0
+        else
+            check_config 0
+        fi
         ;;
     "enable")
         check_install 0 && enable 0

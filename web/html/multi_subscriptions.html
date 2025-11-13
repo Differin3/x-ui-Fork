@@ -60,6 +60,7 @@
     }
   }
   
+<<<<<<< HEAD
   if (typeof Vue === 'undefined') {
     console.error('Vue is not loaded');
     removeVCloak();
@@ -70,6 +71,42 @@
     console.error('themeSwitcher is not defined');
     removeVCloak();
   } else {
+=======
+  // Wait for components to be registered
+  let initAttempts = 0;
+  const maxInitAttempts = 20; // 20 * 50ms = 1 second max wait
+  function initVueApp() {
+    initAttempts++;
+    if (initAttempts > maxInitAttempts) {
+      console.error('Failed to initialize Vue after', maxInitAttempts, 'attempts');
+      removeVCloak();
+      return;
+    }
+    if (typeof Vue === 'undefined') {
+      console.error('Vue is not loaded');
+      removeVCloak();
+      return;
+    }
+    if (typeof MediaQueryMixin === 'undefined') {
+      console.error('MediaQueryMixin is not loaded');
+      removeVCloak();
+      return;
+    }
+    if (typeof themeSwitcher === 'undefined') {
+      console.error('themeSwitcher is not defined');
+      removeVCloak();
+      return;
+    }
+    // Check if components are registered (optional, continue even if not registered)
+    if (Vue.component && !Vue.component('a-sidebar') && initAttempts < maxInitAttempts) {
+      setTimeout(initVueApp, 50);
+      return;
+    }
+    if (Vue.component && !Vue.component('a-theme-switch') && initAttempts < maxInitAttempts) {
+      setTimeout(initVueApp, 50);
+      return;
+    }
+>>>>>>> c2a7224 (Исправлены все три страницы. Добавлен fallback: если Vue не инициализируется, v-cloak удаляется автоматически, чтобы контент был виден. Также добавлен try-catch для обработки ошибок инициализации Vue.)
     try {
       new Vue({
     delimiters: ['[[', ']]'],
@@ -205,6 +242,17 @@
       console.error('Vue initialization failed:', e);
       removeVCloak();
     }
+<<<<<<< HEAD
+=======
+  }
+  
+  // Start initialization after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVueApp);
+  } else {
+    // Small delay to ensure components are registered
+    setTimeout(initVueApp, 10);
+>>>>>>> c2a7224 (Исправлены все три страницы. Добавлен fallback: если Vue не инициализируется, v-cloak удаляется автоматически, чтобы контент был виден. Также добавлен try-catch для обработки ошибок инициализации Vue.)
   }
 </script>
 
