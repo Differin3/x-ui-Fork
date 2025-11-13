@@ -6,26 +6,26 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <a-spin :spinning="loadingStates.spinning" :delay="200" :tip="loadingTip">
+      <a-spin :spinning="loadingStates.spinning" :delay="200" tip='{{ i18n "loading"}}'>
         <a-row :gutter="[16,16]">
           <a-col :span="24">
-            <a-page-header title="Ноды">
+            <a-page-header title='{{ i18n "pages.nodes.title"}}'>
               <template slot="extra">
-                <a-button type="primary" icon="plus" @click="openAdd">Добавить</a-button>
-                <a-button icon="sync" @click="refresh">Обновить</a-button>
+                <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.nodes.add"}}</a-button>
+                <a-button icon="sync" @click="refresh">{{ i18n "pages.nodes.refresh"}}</a-button>
               </template>
             </a-page-header>
           </a-col>
           <a-col :span="24" v-if="showApiTip">
-            <a-alert type="warning" show-icon message="Некоторые ноды не имеют API ключа"></a-alert>
+            <a-alert type="warning" show-icon message='{{ i18n "pages.nodes.tipApiKey"}}'></a-alert>
           </a-col>
           <a-col :span="24">
             <a-table :data-source="nodes" :row-key="'id'" :pagination="false">
-              <a-table-column title="ID" data-index="id" key="id"/>
-              <a-table-column title="Название" data-index="name" key="name"/>
-              <a-table-column title="Хост" data-index="host" key="host"/>
-              <a-table-column title="Порт" data-index="port" key="port"/>
-              <a-table-column title="Статус" key="status">
+              <a-table-column title='{{ i18n "pages.nodes.nodeId"}}' data-index="id" key="id"/>
+              <a-table-column title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
+              <a-table-column title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
+              <a-table-column title='{{ i18n "pages.nodes.port"}}' data-index="port" key="port"/>
+              <a-table-column title='{{ i18n "pages.nodes.status"}}' key="status">
                 <template slot-scope="text, record">
                   <a-tooltip :title="getStatusTooltip(record)">
                     <a-tag :color="getStatusColor(record.status)">
@@ -35,40 +35,40 @@
                   </a-tooltip>
                 </template>
               </a-table-column>
-              <a-table-column title="Последняя проверка" key="lastCheck">
+              <a-table-column title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck">
                 <template slot-scope="text, record">
                   <span>[[ formatCheckTime(record.lastCheck) ]]</span>
                 </template>
               </a-table-column>
-              <a-table-column title="Примечание" data-index="remark" key="remark"/>
-              <a-table-column title="Действия" key="action">
+              <a-table-column title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
+              <a-table-column title='{{ i18n "pages.nodes.actions"}}' key="action">
                 <template slot-scope="text, record">
                   <a-space>
-                    <a-tooltip title="Редактировать">
+                    <a-tooltip :title='{{ i18n "pages.nodes.edit"}}'>
                       <a-button type="link" size="small" @click="openEdit(record)">
                         <a-icon type="edit"/>
-                        <span style="margin-left: 4px">Редактировать</span>
+                        <span style="margin-left: 4px">{{ i18n "pages.nodes.edit"}}</span>
                       </a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
-                    <a-tooltip title="Проверить статус">
+                    <a-tooltip :title='{{ i18n "pages.nodes.check"}}'>
                       <a-button type="link" size="small" @click="check(record)">
                         <a-icon type="check-circle"/>
-                        <span style="margin-left: 4px">Проверить</span>
+                        <span style="margin-left: 4px">{{ i18n "pages.nodes.check"}}</span>
                       </a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
-                    <a-tooltip title="Синхронизировать">
+                    <a-tooltip :title='{{ i18n "pages.nodes.sync"}}'>
                       <a-button type="link" size="small" @click="sync(record)">
                         <a-icon type="sync"/>
-                        <span style="margin-left: 4px">Синхронизировать</span>
+                        <span style="margin-left: 4px">{{ i18n "pages.nodes.sync"}}</span>
                       </a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
-                    <a-popconfirm title="Удалить ноду?" ok-text="Да" cancel-text="Нет" @confirm="del(record)">
+                    <a-popconfirm :title='{{ i18n "deleteConfirm"}}' :ok-text='{{ i18n "yes"}}' :cancel-text='{{ i18n "no"}}' @confirm="del(record)">
                       <a-button type="link" size="small" danger slot="default">
                         <a-icon type="delete"/>
-                        <span style="margin-left: 4px">Удалить</span>
+                        <span style="margin-left: 4px">{{ i18n "pages.nodes.delete"}}</span>
                       </a-button>
                     </a-popconfirm>
                   </a-space>
@@ -78,34 +78,34 @@
           </a-col>
         </a-row>
 
-        <a-modal :visible="modals.edit.visible" title="Нода" :footer="null" @cancel="modals.edit.visible=false">
+        <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.nodes.title"}}' :footer="null" @cancel="modals.edit.visible=false">
           <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
-            <a-form-item label="Название" :validate-status="v.name.status" :help="v.name.help"><a-input v-model="form.name" placeholder="Введите название"/></a-form-item>
-            <a-form-item label="Хост" :validate-status="v.host.status" :help="v.host.help"><a-input v-model="form.host" placeholder="Введите хост"/></a-form-item>
-            <a-form-item label="Порт" :validate-status="v.port.status" :help="v.port.help"><a-input-number v-model="form.port" :min="1" placeholder="Введите порт"/></a-form-item>
-            <a-form-item label="Протокол" :validate-status="v.protocol.status" :help="v.protocol.help">
+            <a-form-item :label='{{ i18n "pages.nodes.name"}}' :validate-status="v.name.status" :help="v.name.help"><a-input v-model="form.name" :placeholder='{{ i18n "pages.nodes.namePlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.host"}}' :validate-status="v.host.status" :help="v.host.help"><a-input v-model="form.host" :placeholder='{{ i18n "pages.nodes.hostPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.port"}}' :validate-status="v.port.status" :help="v.port.help"><a-input-number v-model="form.port" :min="1" :placeholder='{{ i18n "pages.nodes.portPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.protocol"}}' :validate-status="v.protocol.status" :help="v.protocol.help">
               <a-select v-model="form.protocol">
                 <a-select-option value="https">https</a-select-option>
                 <a-select-option value="http">http</a-select-option>
               </a-select>
             </a-form-item>
-            <a-form-item label="API ключ"><a-input v-model="form.apiKey" placeholder="Введите API ключ"/></a-form-item>
-            <a-form-item label="Местоположение"><a-input v-model="form.location" placeholder="Введите местоположение"/></a-form-item>
-            <a-form-item label="Страна"><a-input v-model="form.country" placeholder="Введите страну"/></a-form-item>
-            <a-form-item label="Город"><a-input v-model="form.city" placeholder="Введите город"/></a-form-item>
-            <a-form-item label="Широта"><a-input-number v-model="form.latitude" :step="0.0001" placeholder="Введите широту" style="width: 100%;"/></a-form-item>
-            <a-form-item label="Долгота">
-              <a-input-number v-model="form.longitude" :step="0.0001" placeholder="Введите долготу" style="width: 100%;"/>
-              <a-tooltip slot="extra" title="Определить местоположение по хосту">
-                <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation">Определить</a-button>
+            <a-form-item :label='{{ i18n "pages.nodes.apiKey"}}'><a-input v-model="form.apiKey" :placeholder='{{ i18n "pages.nodes.apiKeyPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.location"}}'><a-input v-model="form.location" :placeholder='{{ i18n "pages.nodes.locationPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.country"}}'><a-input v-model="form.country" :placeholder='{{ i18n "pages.nodes.countryPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.city"}}'><a-input v-model="form.city" :placeholder='{{ i18n "pages.nodes.cityPlaceholder"}}'/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.latitude"}}'><a-input-number v-model="form.latitude" :step="0.0001" :placeholder='{{ i18n "pages.nodes.latitudePlaceholder"}}' style="width: 100%;"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.longitude"}}'>
+              <a-input-number v-model="form.longitude" :step="0.0001" :placeholder='{{ i18n "pages.nodes.longitudePlaceholder"}}' style="width: 100%;"/>
+              <a-tooltip slot="extra" :title='{{ i18n "pages.nodes.detectLocationTooltip"}}'>
+                <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation">{{ i18n "pages.nodes.detectLocation"}}</a-button>
               </a-tooltip>
             </a-form-item>
-            <a-form-item label="Примечание"><a-textarea v-model="form.remark" placeholder="Введите примечание" :auto-size="{minRows:2,maxRows:4}"/></a-form-item>
-            <a-form-item label="Включено"><a-switch v-model="form.enable"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.remark"}}'><a-textarea v-model="form.remark" :placeholder='{{ i18n "pages.nodes.remarkPlaceholder"}}' :auto-size="{minRows:2,maxRows:4}"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.enabled"}}'><a-switch v-model="form.enable"/></a-form-item>
             <a-form-item :wrapper-col="{span:16, offset:6}">
               <a-space>
-                <a-button type="primary" @click="save">Сохранить</a-button>
-                <a-button @click="modals.edit.visible=false">Отмена</a-button>
+                <a-button type="primary" @click="save">{{ i18n "update"}}</a-button>
+                <a-button @click="modals.edit.visible=false">{{ i18n "cancel"}}</a-button>
               </a-space>
             </a-form-item>
           </a-form>
@@ -118,33 +118,13 @@
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
-  function removeVCloak() {
-    const app = document.getElementById('app');
-    if (app) {
-      app.removeAttribute('v-cloak');
-      app.style.display = '';
-    }
-  }
-  
-  if (typeof Vue === 'undefined') {
-    console.error('Vue is not loaded');
-    removeVCloak();
-  } else if (typeof MediaQueryMixin === 'undefined') {
-    console.error('MediaQueryMixin is not loaded');
-    removeVCloak();
-  } else if (typeof themeSwitcher === 'undefined') {
-    console.error('themeSwitcher is not defined');
-    removeVCloak();
-  } else {
-    try {
-      const app = new Vue({
+  const app = new Vue({
     delimiters: ['[[', ']]'],
     mixins: [MediaQueryMixin],
     el: '#app',
     data: {
       themeSwitcher,
       loadingStates: { fetched: false, spinning: false },
-      loadingTip: 'Загрузка...',
       nodes: [],
       modals: { edit: { visible: false } },
       form: { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
@@ -163,10 +143,10 @@
           if (msg.success) {
             this.nodes = (msg.obj || []).map(n => Object.assign({}, n));
           } else {
-            this.$message.error('Ошибка загрузки');
+            this.$message.error(this.$t('validation.loadFailed'));
           }
         } catch (e) {
-          this.$message.error('Ошибка загрузки');
+          this.$message.error(this.$t('validation.loadFailed'));
         }
       },
       openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
@@ -174,10 +154,10 @@
       clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
       validate(){
         let ok = true; this.clearValidation();
-        if(!this.form.name){ this.v.name={status:'error', help:'Обязательное поле'}; ok=false }
-        if(!this.form.host){ this.v.host={status:'error', help:'Обязательное поле'}; ok=false }
-        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:'Неверный порт'}; ok=false }
-        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:'Неверный протокол'}; ok=false }
+        if(!this.form.name){ this.v.name={status:'error', help:this.$t('validation.required')}; ok=false }
+        if(!this.form.host){ this.v.host={status:'error', help:this.$t('validation.required')}; ok=false }
+        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.$t('validation.invalidPort')}; ok=false }
+        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.$t('validation.invalidProtocol')}; ok=false }
         return ok;
       },
       async save(){
@@ -185,16 +165,16 @@
         let res;
         if(this.form.id){ res = await HttpUtil.post('/panel/api/nodes/'+this.form.id, this.form); }
         else{ res = await HttpUtil.post('/panel/api/nodes/', this.form); }
-        if(res && res.success){ this.$message.success('Сохранено'); this.modals.edit.visible=false; this.refresh(); }
-        else { this.$message.error('Ошибка сохранения'); }
+        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
+        else { this.$message.error(this.$t('validation.saveFailed')); }
       },
       async del(r){
         this.$confirm({
-          title: 'Удалить ноду?',
-          content: 'Вы уверены?',
+          title: this.$t('deleteConfirm'),
+          content: this.$t('deleteConfirmDesc'),
           onOk: async () => {
             const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete');
-            if(res.success){ this.$message.success('Удалено'); } else { this.$message.error('Ошибка удаления'); }
+            if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); }
             this.refresh();
           }
         });
@@ -203,7 +183,7 @@
       async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
       async detectLocation(){
         if(!this.form.host){
-          this.$message.warning('Хост обязателен');
+          this.$message.warning(this.$t('validation.required'));
           return;
         }
         this.detectingLocation = true;
@@ -216,12 +196,12 @@
             this.form.city = res.obj.city || '';
             this.form.latitude = res.obj.latitude || null;
             this.form.longitude = res.obj.longitude || null;
-            this.$message.success('Местоположение определено');
+            this.$message.success(this.$t('pages.nodes.toasts.detectLocationSuccess'));
           } else {
-            this.$message.error('Ошибка определения местоположения');
+            this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
           }
         } catch(e) {
-          this.$message.error('Ошибка определения местоположения');
+          this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
         } finally {
           this.detectingLocation = false;
         }
@@ -242,48 +222,38 @@
       },
       getStatusLabel(status) {
         const s = (status || '').toLowerCase();
-        if (s === 'online') return 'Онлайн';
-        if (s === 'offline') return 'Офлайн';
-        if (s === 'error') return 'Ошибка';
-        return 'Неизвестно';
+        if (s === 'online') return this.$t('pages.nodes.statusOnline');
+        if (s === 'offline') return this.$t('pages.nodes.statusOffline');
+        if (s === 'error') return this.$t('pages.nodes.statusError');
+        return this.$t('pages.nodes.statusUnknown');
       },
       getStatusTooltip(r) {
         const status = (r.status || '').toLowerCase();
         let tip = '';
-        if (status === 'online') tip = 'Нода онлайн';
-        else if (status === 'offline') tip = 'Нода офлайн';
-        else if (status === 'error') tip = 'Ошибка подключения';
-        else tip = 'Статус неизвестен';
+        if (status === 'online') tip = this.$t('pages.nodes.statusTooltipOnline');
+        else if (status === 'offline') tip = this.$t('pages.nodes.statusTooltipOffline');
+        else if (status === 'error') tip = this.$t('pages.nodes.statusTooltipError');
+        else tip = this.$t('pages.nodes.statusTooltipUnknown');
         if (r.lastCheck) {
-          tip += `\nПроверено: ${this.formatCheckTime(r.lastCheck)}`;
+          tip += `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}`;
         }
         return tip;
       },
       formatCheckTime(ts){
-        if(!ts){ return 'Неизвестно'; }
+        if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
         try {
           const date = new Date(ts * 1000);
-          if(Number.isNaN(date.getTime())) return 'Неизвестно';
-          return date.toLocaleString('ru-RU');
+          if(Number.isNaN(date.getTime())) return this.$t('pages.nodes.statusUnknown');
+          return date.toLocaleString();
         } catch(e){
-          return 'Неизвестно';
+          return this.$t('pages.nodes.statusUnknown');
         }
       }
     },
     mounted(){
       this.loadingStates.fetched = true;
-      const app = document.getElementById('app');
-      if (app) {
-        app.removeAttribute('v-cloak');
-        app.style.display = '';
-      }
       this.refresh();
     }
   });
-    } catch (e) {
-      console.error('Vue initialization failed:', e);
-      removeVCloak();
-    }
-  }
 </script>
 {{ template "page/body_end" .}}
