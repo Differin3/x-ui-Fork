@@ -1,0 +1,159 @@
+{{define "settings/panel/multi_subscriptions"}}
+<a-row :gutter="[16,16]">
+  <a-col :span="24">
+    <a-page-header :title='{{ i18n "pages.multiSubscriptions.title"}}'>
+      <template slot="extra">
+        <a-button type="primary" icon="plus" @click="multiSubData.openAdd">{{ i18n "pages.multiSubscriptions.add"}}</a-button>
+        <a-button icon="sync" @click="multiSubData.refresh">{{ i18n "pages.nodes.refresh"}}</a-button>
+      </template>
+    </a-page-header>
+  </a-col>
+  <a-col :span="24">
+    <a-table :data-source="multiSubData.items" :row-key="'id'" :pagination="false">
+      <a-table-column :title='{{ i18n "pages.multiSubscriptions.name"}}' data-index="name" key="name"/>
+      <a-table-column :title='{{ i18n "pages.multiSubscriptions.subId"}}' data-index="subId" key="subId"/>
+      <a-table-column :title='{{ i18n "pages.multiSubscriptions.nodes"}}' key="nodes" :customRender="(_, r)=> multiSubData.nodeIdsTpl(r)"></a-table-column>
+      <a-table-column :title='{{ i18n "pages.multiSubscriptions.remark"}}' data-index="remark" key="remark"/>
+      <a-table-column :title='{{ i18n "pages.multiSubscriptions.enabled"}}' key="enable" :customRender="(_, r)=> multiSubData.enableTpl(r)"></a-table-column>
+      <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action" :customRender="(_, r)=> multiSubData.actionTpl(r)"></a-table-column>
+    </a-table>
+  </a-col>
+</a-row>
+
+<a-modal :visible="multiSubData.modals.edit.visible" :title='{{ i18n "pages.multiSubscriptions.title"}}' :footer="null" @cancel="multiSubData.modals.edit.visible=false">
+  <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
+    <a-form-item :label='{{ i18n "pages.multiSubscriptions.name"}}' :validate-status="multiSubData.v.name.status" :help="multiSubData.v.name.help"><a-input v-model="multiSubData.form.name" :placeholder="$t('pages.nodes.namePlaceholder')"/></a-form-item>
+    <a-form-item :label='{{ i18n "pages.multiSubscriptions.subId"}}' :validate-status="multiSubData.v.subId.status" :help="multiSubData.v.subId.help"><a-input v-model="multiSubData.form.subId" :placeholder="$t('pages.multiSubscriptions.subIdPlaceholder')"/></a-form-item>
+    <a-form-item :label='{{ i18n "pages.multiSubscriptions.nodeIdsLabel"}}' :validate-status="multiSubData.v.nodeIds.status" :help="multiSubData.v.nodeIds.help"><a-input v-model="multiSubData.form.nodeIds" :placeholder="$t('pages.multiSubscriptions.nodeIdsPlaceholder')"/></a-form-item>
+    <a-form-item :label='{{ i18n "pages.multiSubscriptions.remark"}}'><a-textarea v-model="multiSubData.form.remark" :placeholder="$t('pages.multiSubscriptions.remarkPlaceholder')" :auto-size="{minRows:2,maxRows:4}"/></a-form-item>
+    <a-form-item :label='{{ i18n "pages.multiSubscriptions.enabled"}}'><a-switch v-model="multiSubData.form.enable"/></a-form-item>
+    <a-form-item :wrapper-col="{span:16, offset:6}">
+      <a-space>
+        <a-button type="primary" @click="multiSubData.save">{{ i18n "update"}}</a-button>
+        <a-button @click="multiSubData.modals.edit.visible=false">{{ i18n "cancel"}}</a-button>
+      </a-space>
+    </a-form-item>
+  </a-form>
+</a-modal>
+
+<script>
+(function() {
+  if (typeof app === 'undefined') return;
+  
+  const multiSubData = {
+    items: [],
+    modals: { edit: { visible: false } },
+    form: { id:null, name:'', subId:'', nodeIds:'[]', remark:'', enable:true },
+    v: { name:{}, subId:{}, nodeIds:{} },
+    async refresh() {
+      app.loading(true);
+      try {
+        const msg = await HttpUtil.get('/panel/api/multi-subscriptions/');
+        if (msg.success) {
+          this.items = msg.obj || [];
+        } else {
+          app.$message.error(app.$t('validation.loadFailed'));
+        }
+      } catch (e) {
+        app.$message.error(app.$t('validation.loadFailed'));
+      } finally {
+        app.loading(false);
+      }
+    },
+    openAdd(){ this.form = { id:null, name:'', subId:'', nodeIds:'[]', remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
+    openEdit(r){ this.form = Object.assign({}, r); if(typeof this.form.nodeIds !== 'string'){ this.form.nodeIds = JSON.stringify(this.form.nodeIds||[]) } this.clearValidation(); this.modals.edit.visible=true; },
+    clearValidation(){ this.v = { name:{}, subId:{}, nodeIds:{} }; },
+    validate(){
+      let ok = true; this.clearValidation();
+      if(!this.form.name){ this.v.name={status:'error', help:app.$t('validation.required')}; ok=false }
+      if(this.form.subId && (this.form.subId.length<3 || this.form.subId.length>64)){ this.v.subId={status:'error', help:app.$t('validation.invalidSubId')}; ok=false }
+      try{
+        const arr = JSON.parse(this.form.nodeIds||'[]');
+        if(!Array.isArray(arr) || !arr.every(x=> Number.isInteger(x))){ this.v.nodeIds={status:'error', help:app.$t('validation.invalidNodeIds')}; ok=false }
+      }catch(e){ this.v.nodeIds={status:'error', help:app.$t('validation.invalidNodeIds')}; ok=false }
+      return ok;
+    },
+    async save(){
+      if(!this.validate()) return;
+      let res;
+      const payload = Object.assign({}, this.form);
+      try{ payload.nodeIds = JSON.parse(this.form.nodeIds||'[]'); }catch(_){}
+      if(this.form.id){ res = await HttpUtil.post('/panel/api/multi-subscriptions/'+this.form.id, payload); }
+      else{ res = await HttpUtil.post('/panel/api/multi-subscriptions/', payload); }
+      if(res && res.success){ app.$message.success(app.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
+      else { app.$message.error(app.$t('validation.saveFailed')); }
+    },
+    async del(r){ const res = await HttpUtil.post('/panel/api/multi-subscriptions/'+r.id+'/delete'); if(res.success){ app.$message.success(app.$t('validation.saveSuccess')); } else { app.$message.error(app.$t('validation.saveFailed')); } this.refresh(); },
+    async copySubUrl(r){
+      try {
+        const res = await HttpUtil.get('/panel/api/multi-subscriptions/'+r.id+'/subscription-url');
+        if(res && res.success && res.obj && res.obj.url){
+          await navigator.clipboard.writeText(res.obj.url);
+          app.$message.success(app.$t('copy') + ' ' + app.$t('success'));
+        } else {
+          app.$message.error(app.$t('validation.loadFailed'));
+        }
+      } catch(e) {
+        app.$message.error(app.$t('validation.loadFailed'));
+      }
+    },
+    enableTpl(r){
+      return app.$createElement('a-tag', { props: { color: r.enable ? 'green' : 'default' } }, [
+        app.$createElement('a-icon', { props: { type: r.enable ? 'check-circle' : 'close-circle' }, style: 'margin-right: 4px' }),
+        r.enable ? (app.$t('yes') || 'Yes') : (app.$t('no') || 'No')
+      ]);
+    },
+    nodeIdsTpl(r){
+      const nodeIds = typeof r.nodeIds === 'string' ? r.nodeIds : JSON.stringify(r.nodeIds || []);
+      return app.$createElement('span', nodeIds);
+    },
+    actionTpl(r){
+      return app.$createElement('span', [
+        app.$createElement('a-tooltip', { props: { title: app.$t('pages.multiSubscriptions.edit') || 'Edit' } }, [
+          app.$createElement('a-button', { 
+            props: { type: 'link', size: 'small' },
+            on: { click: () => this.openEdit(r) }
+          }, [
+            app.$createElement('a-icon', { props: { type: 'edit' } }),
+            app.$createElement('span', { style: 'margin-left: 4px' }, app.$t('pages.multiSubscriptions.edit') || 'Edit')
+          ])
+        ]),
+        app.$createElement('a-divider', { props: { type: 'vertical' } }),
+        app.$createElement('a-tooltip', { props: { title: app.$t('copy') || 'Copy subscription URL' } }, [
+          app.$createElement('a-button', { 
+            props: { type: 'link', size: 'small' },
+            on: { click: () => this.copySubUrl(r) }
+          }, [
+            app.$createElement('a-icon', { props: { type: 'copy' } }),
+            app.$createElement('span', { style: 'margin-left: 4px' }, app.$t('copy') || 'Copy')
+          ])
+        ]),
+        app.$createElement('a-divider', { props: { type: 'vertical' } }),
+        app.$createElement('a-popconfirm', {
+          props: {
+            title: app.$t('deleteConfirm') || 'Are you sure?',
+            okText: app.$t('yes') || 'Yes',
+            cancelText: app.$t('no') || 'No'
+          },
+          on: { confirm: () => this.del(r) }
+        }, [
+          app.$createElement('a-button', { 
+            props: { type: 'link', size: 'small', danger: true }
+          }, [
+            app.$createElement('a-icon', { props: { type: 'delete' } }),
+            app.$createElement('span', { style: 'margin-left: 4px' }, app.$t('pages.multiSubscriptions.delete') || 'Delete')
+          ])
+        ])
+      ]);
+    }
+  };
+  
+  if (typeof app !== 'undefined') {
+    app.multiSubData = multiSubData;
+    app.$nextTick(() => {
+      multiSubData.refresh();
+    });
+  }
+})();
+</script>
+{{end}}

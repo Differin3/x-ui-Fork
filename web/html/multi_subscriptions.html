@@ -51,34 +51,7 @@
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
-  // Fallback: remove v-cloak if Vue fails to initialize
-  function removeVCloak() {
-    const app = document.getElementById('app');
-    if (app) {
-      app.removeAttribute('v-cloak');
-      app.style.display = '';
-    }
-  }
-  
-  // Initialize Vue app (similar to index.html)
-  function initVueApp() {
-    if (typeof Vue === 'undefined') {
-      console.error('Vue is not loaded');
-      removeVCloak();
-      return;
-    }
-    if (typeof MediaQueryMixin === 'undefined') {
-      console.error('MediaQueryMixin is not loaded');
-      removeVCloak();
-      return;
-    }
-    if (typeof themeSwitcher === 'undefined') {
-      console.error('themeSwitcher is not defined');
-      removeVCloak();
-      return;
-    }
-    try {
-      new Vue({
+  new Vue({
     delimiters: ['[[', ']]'],
     el: '#app',
     mixins: [MediaQueryMixin],
@@ -189,33 +162,9 @@
     },
     mounted(){
       this.loadingStates.fetched = true;
-      const root = this.$el;
-      if (root && root.removeAttribute) {
-        root.removeAttribute('v-cloak');
-      }
-      if (root && root.style && root.style.display === 'none') {
-        root.style.display = '';
-      }
-      this.$nextTick(() => {
-        const el = this.$el;
-        if (el && el.removeAttribute) {
-          el.removeAttribute('v-cloak');
-        }
-        if (el && el.style && el.style.display === 'none') {
-          el.style.display = '';
-        }
-      });
       this.refresh();
     }
   });
-    } catch (e) {
-      console.error('Vue initialization failed:', e);
-      removeVCloak();
-    }
-  }
-  
-  // Start initialization immediately (components are loaded via templates)
-  setTimeout(initVueApp, 0);
 </script>
 
 {{ template "page/body_end" .}}
