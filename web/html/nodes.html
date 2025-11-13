@@ -6,21 +6,27 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <a-spin :spinning="loadingStates.spinning" :delay="200" tip='{{ i18n "loading"}}'>
-        <a-row :gutter="[16,16]">
-          <a-col :span="24">
-            <a-page-header title='{{ i18n "pages.nodes.title"}}'>
-              <template slot="extra">
-                <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.nodes.add"}}</a-button>
-                <a-button icon="sync" @click="refresh">{{ i18n "pages.nodes.refresh"}}</a-button>
-              </template>
-            </a-page-header>
-          </a-col>
-          <a-col :span="24" v-if="showApiTip">
-            <a-alert type="warning" show-icon message='{{ i18n "pages.nodes.tipApiKey"}}'></a-alert>
-          </a-col>
-          <a-col :span="24">
-            <a-table :data-source="nodes" :row-key="'id'" :pagination="false">
+      <a-spin :spinning="loadingStates.spinning" :delay="500" tip='{{ i18n "loading"}}'>
+        <transition name="list" appear>
+          <a-row v-if="!loadingStates.fetched">
+            <a-card
+              :style="{ textAlign: 'center', padding: '30px 0', marginTop: '10px', background: 'transparent', border: 'none' }">
+              <a-spin tip='{{ i18n "loading" }}'></a-spin>
+            </a-card>
+          </a-row>
+          <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 0 : 12]" v-else>
+            <a-col>
+              <a-card hoverable>
+                <a-page-header title='{{ i18n "pages.nodes.title"}}'>
+                  <template slot="extra">
+                    <a-space>
+                      <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.nodes.add"}}</a-button>
+                      <a-button icon="sync" @click="refresh" :loading="loadingStates.spinning">{{ i18n "pages.nodes.refresh"}}</a-button>
+                    </a-space>
+                  </template>
+                </a-page-header>
+                <a-alert v-if="showApiTip" type="warning" show-icon message='{{ i18n "pages.nodes.tipApiKey"}}' :style="{ marginTop: '16px' }"></a-alert>
+                <a-table :data-source="nodes" :row-key="'id'" :pagination="false" :style="{ marginTop: '16px' }" size="middle">
               <a-table-column title='{{ i18n "pages.nodes.nodeId"}}' data-index="id" key="id"/>
               <a-table-column title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
               <a-table-column title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
@@ -45,38 +51,28 @@
                 <template slot-scope="text, record">
                   <a-space>
                     <a-tooltip :title='{{ i18n "pages.nodes.edit"}}'>
-                      <a-button type="link" size="small" @click="openEdit(record)">
-                        <a-icon type="edit"/>
-                        <span style="margin-left: 4px">{{ i18n "pages.nodes.edit"}}</span>
-                      </a-button>
+                      <a-button type="link" size="small" icon="edit" @click="openEdit(record)">{{ i18n "pages.nodes.edit"}}</a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
                     <a-tooltip :title='{{ i18n "pages.nodes.check"}}'>
-                      <a-button type="link" size="small" @click="check(record)">
-                        <a-icon type="check-circle"/>
-                        <span style="margin-left: 4px">{{ i18n "pages.nodes.check"}}</span>
-                      </a-button>
+                      <a-button type="link" size="small" icon="check-circle" @click="check(record)">{{ i18n "pages.nodes.check"}}</a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
                     <a-tooltip :title='{{ i18n "pages.nodes.sync"}}'>
-                      <a-button type="link" size="small" @click="sync(record)">
-                        <a-icon type="sync"/>
-                        <span style="margin-left: 4px">{{ i18n "pages.nodes.sync"}}</span>
-                      </a-button>
+                      <a-button type="link" size="small" icon="sync" @click="sync(record)">{{ i18n "pages.nodes.sync"}}</a-button>
                     </a-tooltip>
                     <a-divider type="vertical"/>
                     <a-popconfirm :title='{{ i18n "deleteConfirm"}}' :ok-text='{{ i18n "yes"}}' :cancel-text='{{ i18n "no"}}' @confirm="del(record)">
-                      <a-button type="link" size="small" danger slot="default">
-                        <a-icon type="delete"/>
-                        <span style="margin-left: 4px">{{ i18n "pages.nodes.delete"}}</span>
-                      </a-button>
+                      <a-button type="link" size="small" danger icon="delete" slot="default">{{ i18n "pages.nodes.delete"}}</a-button>
                     </a-popconfirm>
                   </a-space>
                 </template>
               </a-table-column>
             </a-table>
-          </a-col>
-        </a-row>
+              </a-card>
+            </a-col>
+          </a-row>
+        </transition>
 
         <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.nodes.title"}}' :footer="null" @cancel="modals.edit.visible=false">
           <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
@@ -159,6 +155,7 @@
     },
     methods: {
       async refresh() {
+        this.loadingStates.spinning = true;
         try {
           const msg = await HttpUtil.get('/panel/api/nodes/');
           if (msg.success) {
@@ -168,6 +165,8 @@
           }
         } catch (e) {
           this.$message.error(this.t.validationLoadFailed);
+        } finally {
+          this.loadingStates.spinning = false;
         }
       },
       openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
@@ -200,8 +199,24 @@
           }
         });
       },
-      async check(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/check'); this.refresh(); },
-      async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
+      async check(r){
+        this.loadingStates.spinning = true;
+        try {
+          await HttpUtil.post('/panel/api/nodes/'+r.id+'/check');
+          this.refresh();
+        } finally {
+          this.loadingStates.spinning = false;
+        }
+      },
+      async sync(r){
+        this.loadingStates.spinning = true;
+        try {
+          await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync');
+          this.refresh();
+        } finally {
+          this.loadingStates.spinning = false;
+        }
+      },
       async detectLocation(){
         if(!this.form.host){
           this.$message.warning(this.t.validationRequired);

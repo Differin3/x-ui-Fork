@@ -6,61 +6,87 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <div style="padding: 20px;">
-        <a-page-header title="Multi Subscriptions">
-          <template slot="extra">
-            <a-button type="primary" icon="plus" @click="openAdd">Add</a-button>
-            <a-button icon="sync" @click="refresh">Refresh</a-button>
-          </template>
-        </a-page-header>
-        <a-table :data-source="items" :row-key="'id'" :pagination="false" style="margin-top: 20px;">
-          <a-table-column title="ID" data-index="id" key="id"/>
-          <a-table-column title="Name" data-index="name" key="name"/>
-          <a-table-column title="Sub ID" data-index="subId" key="subId"/>
-          <a-table-column title="Node IDs" key="nodeIds">
-            <template slot-scope="text, record">
-              <span>[[ formatNodeIds(record.nodeIds) ]]</span>
-            </template>
-          </a-table-column>
-          <a-table-column title="Enabled" key="enable">
-            <template slot-scope="text, record">
-              <a-tag :color="record.enable ? 'green' : 'default'">
-                [[ record.enable ? 'Yes' : 'No' ]]
-              </a-tag>
-            </template>
-          </a-table-column>
-          <a-table-column title="Remark" data-index="remark" key="remark"/>
-          <a-table-column title="Actions" key="action">
-            <template slot-scope="text, record">
-              <a-button size="small" @click="openEdit(record)">Edit</a-button>
-              <a-button size="small" @click="copySubUrl(record)">Copy URL</a-button>
-              <a-button size="small" danger @click="del(record)">Delete</a-button>
-            </template>
-          </a-table-column>
-        </a-table>
-      </div>
+      <a-spin :spinning="loadingStates.spinning" :delay="500" tip='{{ i18n "loading"}}'>
+        <transition name="list" appear>
+          <a-row v-if="!loadingStates.fetched">
+            <a-card
+              :style="{ textAlign: 'center', padding: '30px 0', marginTop: '10px', background: 'transparent', border: 'none' }">
+              <a-spin tip='{{ i18n "loading" }}'></a-spin>
+            </a-card>
+          </a-row>
+          <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 0 : 12]" v-else>
+            <a-col>
+              <a-card hoverable>
+                <a-page-header title='{{ i18n "pages.multiSubscriptions.title"}}'>
+                  <template slot="extra">
+                    <a-space>
+                      <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.multiSubscriptions.add"}}</a-button>
+                      <a-button icon="sync" @click="refresh" :loading="loadingStates.spinning">Обновить</a-button>
+                    </a-space>
+                  </template>
+                </a-page-header>
+                <a-table :data-source="items" :row-key="'id'" :pagination="false" :style="{ marginTop: '16px' }" size="middle">
+                  <a-table-column title="ID" data-index="id" key="id" width="80"/>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.name"}}' data-index="name" key="name"/>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.subId"}}' data-index="subId" key="subId"/>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.nodes"}}' key="nodeIds">
+                    <template slot-scope="text, record">
+                      <a-tag v-for="id in formatNodeIdsArray(record.nodeIds)" :key="id" :style="{ marginRight: '4px' }">[[ id ]]</a-tag>
+                    </template>
+                  </a-table-column>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.enabled"}}' key="enable" width="100">
+                    <template slot-scope="text, record">
+                      <a-tag :color="record.enable ? 'green' : 'default'">
+                        [[ record.enable ? (t.yes || 'Да') : (t.no || 'Нет') ]]
+                      </a-tag>
+                    </template>
+                  </a-table-column>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.remark"}}' data-index="remark" key="remark"/>
+                  <a-table-column title='{{ i18n "pages.multiSubscriptions.actions"}}' key="action" width="200">
+                    <template slot-scope="text, record">
+                      <a-space>
+                        <a-tooltip title='{{ i18n "pages.multiSubscriptions.edit"}}'>
+                          <a-button type="link" size="small" icon="edit" @click="openEdit(record)">{{ i18n "pages.multiSubscriptions.edit"}}</a-button>
+                        </a-tooltip>
+                        <a-divider type="vertical"/>
+                        <a-tooltip title='{{ i18n "copy"}}'>
+                          <a-button type="link" size="small" icon="copy" @click="copySubUrl(record)">{{ i18n "copy"}}</a-button>
+                        </a-tooltip>
+                        <a-divider type="vertical"/>
+                        <a-popconfirm :title='{{ i18n "deleteConfirm"}}' :ok-text='{{ i18n "yes"}}' :cancel-text='{{ i18n "no"}}' @confirm="del(record)">
+                          <a-button type="link" size="small" danger icon="delete" slot="default">{{ i18n "pages.multiSubscriptions.delete"}}</a-button>
+                        </a-popconfirm>
+                      </a-space>
+                    </template>
+                  </a-table-column>
+                </a-table>
+              </a-card>
+            </a-col>
+          </a-row>
+        </transition>
+      </a-spin>
 
-      <a-modal :visible="modals.edit.visible" title="Multi Subscription" :footer="null" @cancel="modals.edit.visible=false">
+      <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.multiSubscriptions.title"}}' :footer="null" @cancel="modals.edit.visible=false">
         <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
-          <a-form-item label="Name" :validate-status="v.name.status" :help="v.name.help">
-            <a-input v-model="form.name"/>
+          <a-form-item :label='{{ i18n "pages.multiSubscriptions.name"}}' :validate-status="v.name.status" :help="v.name.help">
+            <a-input v-model="form.name" :placeholder='{{ i18n "pages.multiSubscriptions.name" || "Название"}}'/>
           </a-form-item>
-          <a-form-item label="Sub ID" :validate-status="v.subId.status" :help="v.subId.help">
-            <a-input v-model="form.subId"/>
+          <a-form-item :label='{{ i18n "pages.multiSubscriptions.subId"}}' :validate-status="v.subId.status" :help="v.subId.help">
+            <a-input v-model="form.subId" :placeholder='{{ i18n "pages.multiSubscriptions.subIdPlaceholder"}}'/>
           </a-form-item>
-          <a-form-item label="Node IDs" :validate-status="v.nodeIds.status" :help="v.nodeIds.help">
-            <a-textarea v-model="form.nodeIds" :auto-size="{minRows:3,maxRows:6}" placeholder='[1, 2, 3]'/>
+          <a-form-item :label='{{ i18n "pages.multiSubscriptions.nodeIdsLabel"}}' :validate-status="v.nodeIds.status" :help="v.nodeIds.help">
+            <a-textarea v-model="form.nodeIds" :auto-size="{minRows:3,maxRows:6}" :placeholder='{{ i18n "pages.multiSubscriptions.nodeIdsPlaceholder"}}'/>
           </a-form-item>
-          <a-form-item label="Remark">
-            <a-textarea v-model="form.remark" :auto-size="{minRows:2,maxRows:4}"/>
+          <a-form-item :label='{{ i18n "pages.multiSubscriptions.remark"}}'>
+            <a-textarea v-model="form.remark" :auto-size="{minRows:2,maxRows:4}" :placeholder='{{ i18n "pages.multiSubscriptions.remarkPlaceholder"}}'/>
           </a-form-item>
-          <a-form-item label="Enabled">
+          <a-form-item :label='{{ i18n "pages.multiSubscriptions.enabled"}}'>
             <a-switch v-model="form.enable"/>
           </a-form-item>
           <a-form-item :wrapper-col="{span:16, offset:6}">
             <a-space>
-              <a-button type="primary" @click="save">Save</a-button>
-              <a-button @click="modals.edit.visible=false">Cancel</a-button>
+              <a-button type="primary" @click="save">{{ i18n "update"}}</a-button>
+              <a-button @click="modals.edit.visible=false">{{ i18n "cancel"}}</a-button>
             </a-space>
           </a-form-item>
         </a-form>
@@ -78,31 +104,52 @@
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
+      loadingStates: { fetched: false, spinning: false },
       items: [],
       modals: { edit: { visible: false } },
       form: { id: null, name: '', subId: '', nodeIds: '[]', remark: '', enable: true },
       v: { name: {}, subId: {}, nodeIds: {} },
+      t: {
+        validationRequired: '{{ i18n "validation.required"}}',
+        validationInvalidSubId: '{{ i18n "validation.invalidSubId"}}',
+        validationInvalidNodeIds: '{{ i18n "validation.invalidNodeIds"}}',
+        validationLoadFailed: '{{ i18n "validation.loadFailed"}}',
+        validationSaveSuccess: '{{ i18n "validation.saveSuccess"}}',
+        validationSaveFailed: '{{ i18n "validation.saveFailed"}}',
+        deleteConfirm: '{{ i18n "deleteConfirm"}}',
+        deleteConfirmDesc: '{{ i18n "deleteConfirmDesc"}}',
+        copy: '{{ i18n "copy"}}',
+        success: '{{ i18n "success"}}',
+        yes: '{{ i18n "yes"}}',
+        no: '{{ i18n "no"}}',
+      }
     },
     methods: {
       async refresh() {
+        this.loadingStates.spinning = true;
         try {
           const msg = await HttpUtil.get('/panel/api/multi-subscriptions/');
           if (msg.success) {
             this.items = msg.obj || [];
+            this.loadingStates.fetched = true;
+          } else {
+            this.$message.error(this.t.validationLoadFailed);
           }
         } catch (e) {
-          this.$message.error('Load failed');
+          this.$message.error(this.t.validationLoadFailed);
+        } finally {
+          this.loadingStates.spinning = false;
         }
       },
-      formatNodeIds(nodeIds) {
+      formatNodeIdsArray(nodeIds) {
         if (typeof nodeIds === 'string') {
           try {
             nodeIds = JSON.parse(nodeIds);
           } catch (e) {
-            return nodeIds;
+            return [];
           }
         }
-        return Array.isArray(nodeIds) ? nodeIds.join(', ') : '';
+        return Array.isArray(nodeIds) ? nodeIds : [];
       },
       openAdd() {
         this.form = { id: null, name: '', subId: '', nodeIds: '[]', remark: '', enable: true };
@@ -124,60 +171,70 @@
         let ok = true;
         this.clearValidation();
         if (!this.form.name) {
-          this.v.name = { status: 'error', help: 'Required' };
+          this.v.name = { status: 'error', help: this.t.validationRequired };
           ok = false;
         }
         if (this.form.subId && (this.form.subId.length < 3 || this.form.subId.length > 64)) {
-          this.v.subId = { status: 'error', help: 'Invalid Sub ID' };
+          this.v.subId = { status: 'error', help: this.t.validationInvalidSubId };
           ok = false;
         }
         try {
           const arr = JSON.parse(this.form.nodeIds || '[]');
           if (!Array.isArray(arr) || !arr.every(x => Number.isInteger(x))) {
-            this.v.nodeIds = { status: 'error', help: 'Invalid Node IDs (must be JSON array of integers)' };
+            this.v.nodeIds = { status: 'error', help: this.t.validationInvalidNodeIds };
             ok = false;
           }
         } catch (e) {
-          this.v.nodeIds = { status: 'error', help: 'Invalid JSON' };
+          this.v.nodeIds = { status: 'error', help: this.t.validationInvalidNodeIds };
           ok = false;
         }
         return ok;
       },
       async save() {
         if (!this.validate()) return;
-        let res;
-        const payload = Object.assign({}, this.form);
+        this.loadingStates.spinning = true;
         try {
-          payload.nodeIds = JSON.parse(this.form.nodeIds || '[]');
-        } catch (e) {
-          this.$message.error('Invalid Node IDs format');
-          return;
-        }
-        if (this.form.id) {
-          res = await HttpUtil.post('/panel/api/multi-subscriptions/' + this.form.id, payload);
-        } else {
-          res = await HttpUtil.post('/panel/api/multi-subscriptions/', payload);
-        }
-        if (res && res.success) {
-          this.$message.success('Saved');
-          this.modals.edit.visible = false;
-          this.refresh();
-        } else {
-          this.$message.error('Save failed');
+          let res;
+          const payload = Object.assign({}, this.form);
+          try {
+            payload.nodeIds = JSON.parse(this.form.nodeIds || '[]');
+          } catch (e) {
+            this.$message.error(this.t.validationInvalidNodeIds);
+            return;
+          }
+          if (this.form.id) {
+            res = await HttpUtil.post('/panel/api/multi-subscriptions/' + this.form.id, payload);
+          } else {
+            res = await HttpUtil.post('/panel/api/multi-subscriptions/', payload);
+          }
+          if (res && res.success) {
+            this.$message.success(this.t.validationSaveSuccess);
+            this.modals.edit.visible = false;
+            this.refresh();
+          } else {
+            this.$message.error(this.t.validationSaveFailed);
+          }
+        } finally {
+          this.loadingStates.spinning = false;
         }
       },
       async del(r) {
         this.$confirm({
-          title: 'Delete?',
-          content: 'Are you sure?',
+          title: this.t.deleteConfirm,
+          content: this.t.deleteConfirmDesc,
           onOk: async () => {
-            const res = await HttpUtil.post('/panel/api/multi-subscriptions/' + r.id + '/delete');
-            if (res.success) {
-              this.$message.success('Deleted');
-            } else {
-              this.$message.error('Delete failed');
+            this.loadingStates.spinning = true;
+            try {
+              const res = await HttpUtil.post('/panel/api/multi-subscriptions/' + r.id + '/delete');
+              if (res.success) {
+                this.$message.success(this.t.validationSaveSuccess);
+              } else {
+                this.$message.error(this.t.validationSaveFailed);
+              }
+              this.refresh();
+            } finally {
+              this.loadingStates.spinning = false;
             }
-            this.refresh();
           }
         });
       },
@@ -186,12 +243,12 @@
           const res = await HttpUtil.get('/panel/api/multi-subscriptions/' + r.id + '/subscription-url');
           if (res && res.success && res.obj && res.obj.url) {
             await navigator.clipboard.writeText(res.obj.url);
-            this.$message.success('URL copied');
+            this.$message.success(this.t.copy + ' ' + this.t.success);
           } else {
-            this.$message.error('Failed to get URL');
+            this.$message.error(this.t.validationLoadFailed);
           }
         } catch (e) {
-          this.$message.error('Failed to copy URL');
+          this.$message.error(this.t.validationLoadFailed);
         }
       }
     },
