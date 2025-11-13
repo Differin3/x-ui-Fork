@@ -23,28 +23,66 @@
               <a-tag :color="getStatusColor(record.status)">[[ record.status || 'unknown' ]]</a-tag>
             </template>
           </a-table-column>
+          <a-table-column title="Remark" data-index="remark" key="remark"/>
           <a-table-column title="Actions" key="action">
             <template slot-scope="text, record">
               <a-button size="small" @click="openEdit(record)">Edit</a-button>
+              <a-button size="small" @click="check(record)">Check</a-button>
+              <a-button size="small" @click="sync(record)">Sync</a-button>
               <a-button size="small" danger @click="del(record)">Delete</a-button>
             </template>
           </a-table-column>
         </a-table>
       </div>
 
-      <a-modal :visible="modals.edit.visible" title="Node" @cancel="modals.edit.visible=false" @ok="save">
+      <a-modal :visible="modals.edit.visible" title="Node" :footer="null" @cancel="modals.edit.visible=false">
         <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
-          <a-form-item label="Name"><a-input v-model="form.name"/></a-form-item>
-          <a-form-item label="Host"><a-input v-model="form.host"/></a-form-item>
-          <a-form-item label="Port"><a-input-number v-model="form.port" :min="1"/></a-form-item>
-          <a-form-item label="Protocol">
+          <a-form-item label="Name" :validate-status="v.name.status" :help="v.name.help">
+            <a-input v-model="form.name"/>
+          </a-form-item>
+          <a-form-item label="Host" :validate-status="v.host.status" :help="v.host.help">
+            <a-input v-model="form.host"/>
+          </a-form-item>
+          <a-form-item label="Port" :validate-status="v.port.status" :help="v.port.help">
+            <a-input-number v-model="form.port" :min="1" :max="65535" style="width: 100%;"/>
+          </a-form-item>
+          <a-form-item label="Protocol" :validate-status="v.protocol.status" :help="v.protocol.help">
             <a-select v-model="form.protocol">
               <a-select-option value="https">https</a-select-option>
               <a-select-option value="http">http</a-select-option>
             </a-select>
           </a-form-item>
-          <a-form-item label="API Key"><a-input v-model="form.apiKey"/></a-form-item>
-          <a-form-item label="Enabled"><a-switch v-model="form.enable"/></a-form-item>
+          <a-form-item label="API Key">
+            <a-input v-model="form.apiKey"/>
+          </a-form-item>
+          <a-form-item label="Location">
+            <a-input v-model="form.location"/>
+          </a-form-item>
+          <a-form-item label="Country">
+            <a-input v-model="form.country"/>
+          </a-form-item>
+          <a-form-item label="City">
+            <a-input v-model="form.city"/>
+          </a-form-item>
+          <a-form-item label="Latitude">
+            <a-input-number v-model="form.latitude" :step="0.0001" style="width: 100%;"/>
+          </a-form-item>
+          <a-form-item label="Longitude">
+            <a-input-number v-model="form.longitude" :step="0.0001" style="width: 100%;"/>
+            <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation" style="margin-left: 8px;">Detect</a-button>
+          </a-form-item>
+          <a-form-item label="Remark">
+            <a-textarea v-model="form.remark" :auto-size="{minRows:2,maxRows:4}"/>
+          </a-form-item>
+          <a-form-item label="Enabled">
+            <a-switch v-model="form.enable"/>
+          </a-form-item>
+          <a-form-item :wrapper-col="{span:16, offset:6}">
+            <a-space>
+              <a-button type="primary" @click="save">Save</a-button>
+              <a-button @click="modals.edit.visible=false">Cancel</a-button>
+            </a-space>
+          </a-form-item>
         </a-form>
       </a-modal>
     </a-layout-content>
@@ -62,7 +100,9 @@
       themeSwitcher,
       nodes: [],
       modals: { edit: { visible: false } },
-      form: { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', enable: true },
+      form: { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', location: '', country: '', city: '', latitude: null, longitude: null, remark: '', enable: true },
+      v: { name: {}, host: {}, port: {}, protocol: {} },
+      detectingLocation: false,
     },
     methods: {
       async refresh() {
@@ -83,14 +123,41 @@
         return 'default';
       },
       openAdd() {
-        this.form = { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', enable: true };
+        this.form = { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', location: '', country: '', city: '', latitude: null, longitude: null, remark: '', enable: true };
+        this.clearValidation();
         this.modals.edit.visible = true;
       },
       openEdit(r) {
         this.form = Object.assign({}, r);
+        this.clearValidation();
         this.modals.edit.visible = true;
       },
+      clearValidation() {
+        this.v = { name: {}, host: {}, port: {}, protocol: {} };
+      },
+      validate() {
+        let ok = true;
+        this.clearValidation();
+        if (!this.form.name) {
+          this.v.name = { status: 'error', help: 'Required' };
+          ok = false;
+        }
+        if (!this.form.host) {
+          this.v.host = { status: 'error', help: 'Required' };
+          ok = false;
+        }
+        if (!this.form.port || this.form.port < 1 || this.form.port > 65535) {
+          this.v.port = { status: 'error', help: 'Invalid port' };
+          ok = false;
+        }
+        if (!['http', 'https'].includes(this.form.protocol)) {
+          this.v.protocol = { status: 'error', help: 'Invalid protocol' };
+          ok = false;
+        }
+        return ok;
+      },
       async save() {
+        if (!this.validate()) return;
         let res;
         if (this.form.id) {
           res = await HttpUtil.post('/panel/api/nodes/' + this.form.id, this.form);
@@ -105,14 +172,52 @@
           this.$message.error('Save failed');
         }
       },
-      async del(r) {
-        const res = await HttpUtil.post('/panel/api/nodes/' + r.id + '/delete');
-        if (res.success) {
-          this.$message.success('Deleted');
-        } else {
-          this.$message.error('Delete failed');
-        }
+      async check(r) {
+        await HttpUtil.post('/panel/api/nodes/' + r.id + '/check');
         this.refresh();
+      },
+      async sync(r) {
+        await HttpUtil.post('/panel/api/nodes/' + r.id + '/sync');
+      },
+      async detectLocation() {
+        if (!this.form.host) {
+          this.$message.warning('Host is required');
+          return;
+        }
+        this.detectingLocation = true;
+        try {
+          const nodeId = this.form.id || 0;
+          const res = await HttpUtil.post('/panel/api/nodes/' + nodeId + '/detect-location', { host: this.form.host });
+          if (res && res.success && res.obj) {
+            this.form.location = res.obj.location || '';
+            this.form.country = res.obj.country || '';
+            this.form.city = res.obj.city || '';
+            this.form.latitude = res.obj.latitude || null;
+            this.form.longitude = res.obj.longitude || null;
+            this.$message.success('Location detected');
+          } else {
+            this.$message.error('Failed to detect location');
+          }
+        } catch (e) {
+          this.$message.error('Failed to detect location');
+        } finally {
+          this.detectingLocation = false;
+        }
+      },
+      async del(r) {
+        this.$confirm({
+          title: 'Delete node?',
+          content: 'Are you sure?',
+          onOk: async () => {
+            const res = await HttpUtil.post('/panel/api/nodes/' + r.id + '/delete');
+            if (res.success) {
+              this.$message.success('Deleted');
+            } else {
+              this.$message.error('Delete failed');
+            }
+            this.refresh();
+          }
+        });
       }
     },
     mounted() {
