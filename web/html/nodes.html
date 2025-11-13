@@ -86,7 +86,7 @@
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
-      loadingStates: { spinning: false, },
+      loadingStates: { fetched: false, spinning: false },
       loadingTip: '{{ i18n "loading"}}',
       nodes: [],
       modals: { edit: { visible: false } },
@@ -239,24 +239,9 @@
         }
       }
     },
-    mounted(){ 
-      const root = this.$el;
-      if (root && root.removeAttribute) {
-        root.removeAttribute('v-cloak');
-      }
-      if (root && root.style && root.style.display === 'none') {
-        root.style.display = '';
-      }
-      this.$nextTick(() => {
-        const el = this.$el;
-        if (el && el.removeAttribute) {
-          el.removeAttribute('v-cloak');
-        }
-        if (el && el.style && el.style.display === 'none') {
-          el.style.display = '';
-        }
-      });
-      this.refresh(); 
+    mounted(){
+      this.loadingStates.fetched = true;
+      this.refresh();
     }
   });
   }

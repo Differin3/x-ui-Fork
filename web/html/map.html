@@ -47,181 +47,182 @@
       mixins: [MediaQueryMixin],
       data: {
         themeSwitcher,
-      loadingStates: { spinning: false, },
-      loadingTip: '{{ i18n "loading"}}',
-      nodes: [],
-      map: null,
-      tiles: null,
-      markers: [],
-      markerCluster: null,
-    },
-    methods: {
-      async refresh() {
-        const msg = await HttpUtil.get('/panel/api/dashboard/map');
-        if (msg.success) {
-          this.nodes = (msg.obj || []).filter(n => n.latitude && n.longitude);
+        loadingStates: { fetched: false, spinning: false },
+        loadingTip: '{{ i18n "loading"}}',
+        nodes: [],
+        map: null,
+        tiles: null,
+        markers: [],
+        markerCluster: null,
+      },
+      methods: {
+        async refresh() {
+          const msg = await HttpUtil.get('/panel/api/dashboard/map');
+          if (msg.success) {
+            this.nodes = (msg.obj || []).filter(n => n.latitude && n.longitude);
+            this.renderMap();
+          }
+        },
+        tileUrl() {
+          const isDark = this.themeSwitcher.isDarkTheme;
+          // Carto tiles: light vs dark to match panel themes
+          return isDark
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+        },
+        tileAttribution() {
+          return '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+        },
+        markerColor(status) {
+          switch (String(status).toLowerCase()) {
+            case 'online': return '#00a86b';
+            case 'error': return '#e46a76';
+            default: return '#888888'; // offline/unknown
+          }
+        },
+        renderMap() {
+          this.$nextTick(() => {
+            const container = document.getElementById('world-map');
+            if (!container) return;
+
+            if (!this.map) {
+              this.map = L.map('world-map', { zoomControl: true, worldCopyJump: true });
+            }
+
+            // Reset tile layer on theme change
+            if (this.tiles) {
+              this.map.removeLayer(this.tiles);
+            }
+            this.tiles = L.tileLayer(this.tileUrl(), { attribution: this.tileAttribution(), maxZoom: 19 });
+            this.tiles.addTo(this.map);
+
+            // Clear existing markers and cluster
+            if (this.markerCluster) {
+              this.map.removeLayer(this.markerCluster);
+              this.markerCluster = null;
+            }
+            for (const m of this.markers) {
+              if (this.map.hasLayer(m)) {
+                this.map.removeLayer(m);
+              }
+            }
+            this.markers = [];
+
+            if (this.nodes.length === 0) {
+              // Default view
+              this.map.setView([20, 0], 2);
+              return;
+            }
+
+            // Create marker cluster group
+            this.markerCluster = L.markerClusterGroup({
+              maxClusterRadius: 50,
+              spiderfyOnMaxZoom: true,
+              showCoverageOnHover: false,
+              zoomToBoundsOnClick: true,
+            });
+
+            const latlngs = [];
+            for (const n of this.nodes) {
+              const lat = parseFloat(n.latitude), lng = parseFloat(n.longitude);
+              if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                latlngs.push([lat, lng]);
+                const circle = L.circleMarker([lat, lng], {
+                  radius: 7,
+                  weight: 2,
+                  color: this.markerColor(n.status),
+                  fillColor: this.markerColor(n.status),
+                  fillOpacity: 0.85,
+                });
+                const statusInfo = n.status === 'online' 
+                  ? { color: '#52c41a', label: 'Online' }
+                  : n.status === 'error' 
+                  ? { color: '#faad14', label: 'Error' }
+                  : { color: '#ff4d4f', label: 'Offline' };
+                const popup = `<div style="min-width:200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                  <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                    <strong style="font-size: 15px; color: #262626;">${this._escape(n.name || 'Unnamed Node')}</strong>
+                  </div>
+                  <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Host:</span>
+                    <span style="color: #262626; font-family: 'Courier New', monospace;">${this._escape(n.host || 'N/A')}</span>
+                  </div>
+                  <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Status:</span>
+                    <span style="color: ${statusInfo.color}; font-weight: 500; display: inline-flex; align-items: center;">
+                      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${statusInfo.color}; margin-right: 6px;"></span>
+                      ${statusInfo.label}
+                    </span>
+                  </div>
+                  ${n.city ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
+                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">City:</span>
+                    <span style="color: #262626;">${this._escape(n.city)}</span>
+                  </div>` : ''}
+                  ${n.country ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
+                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Country:</span>
+                    <span style="color: #262626;">${this._escape(n.country)}</span>
+                  </div>` : ''}
+                  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
+                    <div style="color: #8c8c8c; font-size: 11px; font-family: 'Courier New', monospace;">
+                      ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                    </div>
+                  </div>
+                </div>`;
+                circle.bindPopup(popup);
+                this.markerCluster.addLayer(circle);
+                this.markers.push(circle);
+              }
+            }
+
+            // Add cluster group to map
+            if (this.markerCluster.getLayers().length > 0) {
+              this.map.addLayer(this.markerCluster);
+            }
+
+            if (latlngs.length) {
+              const bounds = L.latLngBounds(latlngs);
+              this.map.fitBounds(bounds.pad(0.2));
+            } else {
+              this.map.setView([20, 0], 2);
+            }
+          })
+        },
+        _escape(s){
+          return String(s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+        }
+      },
+      computed: {
+        currentTheme() {
+          return this.themeSwitcher.currentTheme;
+        }
+      },
+      watch: {
+        currentTheme(){
+          // Re-render tiles to match theme
           this.renderMap();
         }
       },
-      tileUrl() {
-        const isDark = this.themeSwitcher.isDarkTheme;
-        // Carto tiles: light vs dark to match panel themes
-        return isDark
-          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-          : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-      },
-      tileAttribution() {
-        return '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-      },
-      markerColor(status) {
-        switch (String(status).toLowerCase()) {
-          case 'online': return '#00a86b';
-          case 'error': return '#e46a76';
-          default: return '#888888'; // offline/unknown
+      mounted(){
+        this.loadingStates.fetched = true;
+        const root = this.$el;
+        if (root && root.removeAttribute) {
+          root.removeAttribute('v-cloak');
         }
-      },
-      renderMap() {
+        if (root && root.style && root.style.display === 'none') {
+          root.style.display = '';
+        }
         this.$nextTick(() => {
-          const container = document.getElementById('world-map');
-          if (!container) return;
-
-          if (!this.map) {
-            this.map = L.map('world-map', { zoomControl: true, worldCopyJump: true });
+          const el = this.$el;
+          if (el && el.removeAttribute) {
+            el.removeAttribute('v-cloak');
           }
-
-          // Reset tile layer on theme change
-          if (this.tiles) {
-            this.map.removeLayer(this.tiles);
+          if (el && el.style && el.style.display === 'none') {
+            el.style.display = '';
           }
-          this.tiles = L.tileLayer(this.tileUrl(), { attribution: this.tileAttribution(), maxZoom: 19 });
-          this.tiles.addTo(this.map);
-
-          // Clear existing markers and cluster
-          if (this.markerCluster) {
-            this.map.removeLayer(this.markerCluster);
-            this.markerCluster = null;
-          }
-          for (const m of this.markers) {
-            if (this.map.hasLayer(m)) {
-              this.map.removeLayer(m);
-            }
-          }
-          this.markers = [];
-
-          if (this.nodes.length === 0) {
-            // Default view
-            this.map.setView([20, 0], 2);
-            return;
-          }
-
-          // Create marker cluster group
-          this.markerCluster = L.markerClusterGroup({
-            maxClusterRadius: 50,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            zoomToBoundsOnClick: true,
-          });
-
-          const latlngs = [];
-          for (const n of this.nodes) {
-            const lat = parseFloat(n.latitude), lng = parseFloat(n.longitude);
-            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-              latlngs.push([lat, lng]);
-              const circle = L.circleMarker([lat, lng], {
-                radius: 7,
-                weight: 2,
-                color: this.markerColor(n.status),
-                fillColor: this.markerColor(n.status),
-                fillOpacity: 0.85,
-              });
-              const statusInfo = n.status === 'online' 
-                ? { color: '#52c41a', label: 'Online' }
-                : n.status === 'error' 
-                ? { color: '#faad14', label: 'Error' }
-                : { color: '#ff4d4f', label: 'Offline' };
-              const popup = `<div style="min-width:200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
-                  <strong style="font-size: 15px; color: #262626;">${this._escape(n.name || 'Unnamed Node')}</strong>
-                </div>
-                <div style="margin-bottom: 6px; display: flex; align-items: center;">
-                  <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Host:</span>
-                  <span style="color: #262626; font-family: 'Courier New', monospace;">${this._escape(n.host || 'N/A')}</span>
-                </div>
-                <div style="margin-bottom: 6px; display: flex; align-items: center;">
-                  <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Status:</span>
-                  <span style="color: ${statusInfo.color}; font-weight: 500; display: inline-flex; align-items: center;">
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${statusInfo.color}; margin-right: 6px;"></span>
-                    ${statusInfo.label}
-                  </span>
-                </div>
-                ${n.city ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
-                  <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">City:</span>
-                  <span style="color: #262626;">${this._escape(n.city)}</span>
-                </div>` : ''}
-                ${n.country ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
-                  <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Country:</span>
-                  <span style="color: #262626;">${this._escape(n.country)}</span>
-                </div>` : ''}
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-                  <div style="color: #8c8c8c; font-size: 11px; font-family: 'Courier New', monospace;">
-                    ${lat.toFixed(4)}, ${lng.toFixed(4)}
-                  </div>
-                </div>
-              </div>`;
-              circle.bindPopup(popup);
-              this.markerCluster.addLayer(circle);
-              this.markers.push(circle);
-            }
-          }
-
-          // Add cluster group to map
-          if (this.markerCluster.getLayers().length > 0) {
-            this.map.addLayer(this.markerCluster);
-          }
-
-          if (latlngs.length) {
-            const bounds = L.latLngBounds(latlngs);
-            this.map.fitBounds(bounds.pad(0.2));
-          } else {
-            this.map.setView([20, 0], 2);
-          }
-        })
-      },
-      _escape(s){
-        return String(s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+        });
+        this.refresh();
       }
-    },
-    computed: {
-      currentTheme() {
-        return this.themeSwitcher.currentTheme;
-      }
-    },
-    watch: {
-      currentTheme(){
-        // Re-render tiles to match theme
-        this.renderMap();
-      }
-    },
-    mounted(){ 
-      const root = this.$el;
-      if (root && root.removeAttribute) {
-        root.removeAttribute('v-cloak');
-      }
-      if (root && root.style && root.style.display === 'none') {
-        root.style.display = '';
-      }
-      this.$nextTick(() => {
-        const el = this.$el;
-        if (el && el.removeAttribute) {
-          el.removeAttribute('v-cloak');
-        }
-        if (el && el.style && el.style.display === 'none') {
-          el.style.display = '';
-        }
-      });
-      this.refresh(); 
-    }
-  });
+    });
   }
 </script>
 

@@ -64,7 +64,7 @@
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
-      loadingStates: { spinning: false, },
+      loadingStates: { fetched: false, spinning: false },
       loadingTip: '{{ i18n "loading"}}',
       items: [],
       modals: { edit: { visible: false } },
@@ -167,7 +167,8 @@
         ]);
       }
     },
-    mounted(){ 
+    mounted(){
+      this.loadingStates.fetched = true;
       const root = this.$el;
       if (root && root.removeAttribute) {
         root.removeAttribute('v-cloak');
@@ -184,7 +185,7 @@
           el.style.display = '';
         }
       });
-      this.refresh(); 
+      this.refresh();
     }
   });
   }
