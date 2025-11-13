@@ -89,6 +89,13 @@
                     </template>
                     {{ template "settings/panel/subscription/json" . }}
                   </a-tab-pane>
+                  <a-tab-pane key="6" :style="{ paddingTop: '20px' }">
+                    <template #tab>
+                      <a-icon type="appstore"></a-icon>
+                      <span>{{ i18n "pages.multiSubscriptions.title"}}</span>
+                    </template>
+                    {{ template "settings/panel/multi_subscriptions" . }}
+                  </a-tab-pane>
                 </a-tabs>
               </a-col>
             </a-row>
@@ -127,6 +134,10 @@
       remarkSeparators: [' ', '-', '_', '@', ':', '~', '|', ',', '.', '/'],
       datepickerList: [{ name: 'Gregorian (Standard)', value: 'gregorian' }, { name: 'Jalalian (شمسی)', value: 'jalalian' }],
       remarkSample: '',
+      multiSubItems: [],
+      multiSubModals: { edit: { visible: false } },
+      multiSubForm: { id:null, name:'', subId:'', nodeIds:'[]', remark:'', enable:true },
+      multiSubV: { name:{}, subId:{}, nodeIds:{} },
       defaultFragment: {
         tag: "fragment",
         protocol: "freedom",
@@ -382,6 +393,109 @@
         updatedNoises[index] = { ...updatedNoises[index], applyTo: value };
         this.noisesArray = updatedNoises;
       },
+      async refreshMultiSub() {
+        this.loading(true);
+        try {
+          const msg = await HttpUtil.get('/panel/api/multi-subscriptions/');
+          if (msg.success) {
+            this.multiSubItems = msg.obj || [];
+            console.log('Multi-subscriptions loaded:', this.multiSubItems.length);
+          } else {
+            this.$message.error(this.$t('validation.loadFailed'));
+          }
+        } catch (e) {
+          console.error('Failed to load multi-subscriptions:', e);
+          this.$message.error(this.$t('validation.loadFailed'));
+        } finally {
+          this.loading(false);
+        }
+      },
+      openAddMultiSub(){ this.multiSubForm = { id:null, name:'', subId:'', nodeIds:'[]', remark:'', enable:true }; this.clearValidationMultiSub(); this.multiSubModals.edit.visible=true; },
+      openEditMultiSub(r){ this.multiSubForm = Object.assign({}, r); if(typeof this.multiSubForm.nodeIds !== 'string'){ this.multiSubForm.nodeIds = JSON.stringify(this.multiSubForm.nodeIds||[]) } this.clearValidationMultiSub(); this.multiSubModals.edit.visible=true; },
+      clearValidationMultiSub(){ this.multiSubV = { name:{}, subId:{}, nodeIds:{} }; },
+      validateMultiSub(){
+        let ok = true; this.clearValidationMultiSub();
+        if(!this.multiSubForm.name){ this.multiSubV.name={status:'error', help:this.$t('validation.required')}; ok=false }
+        if(this.multiSubForm.subId && (this.multiSubForm.subId.length<3 || this.multiSubForm.subId.length>64)){ this.multiSubV.subId={status:'error', help:this.$t('validation.invalidSubId')}; ok=false }
+        try{
+          const arr = JSON.parse(this.multiSubForm.nodeIds||'[]');
+          if(!Array.isArray(arr) || !arr.every(x=> Number.isInteger(x))){ this.multiSubV.nodeIds={status:'error', help:this.$t('validation.invalidNodeIds')}; ok=false }
+        }catch(e){ this.multiSubV.nodeIds={status:'error', help:this.$t('validation.invalidNodeIds')}; ok=false }
+        return ok;
+      },
+      async saveMultiSub(){
+        if(!this.validateMultiSub()) return;
+        let res;
+        const payload = Object.assign({}, this.multiSubForm);
+        try{ payload.nodeIds = JSON.parse(this.multiSubForm.nodeIds||'[]'); }catch(_){ /* keep as string if parsing fails */ }
+        if(this.multiSubForm.id){ res = await HttpUtil.post('/panel/api/multi-subscriptions/'+this.multiSubForm.id, payload); }
+        else{ res = await HttpUtil.post('/panel/api/multi-subscriptions/', payload); }
+        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.multiSubModals.edit.visible=false; this.refreshMultiSub(); }
+        else { this.$message.error(this.$t('validation.saveFailed')); }
+      },
+      async delMultiSub(r){ const res = await HttpUtil.post('/panel/api/multi-subscriptions/'+r.id+'/delete'); if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); } this.refreshMultiSub(); },
+      async copySubUrlMultiSub(r){
+        try {
+          const res = await HttpUtil.get('/panel/api/multi-subscriptions/'+r.id+'/subscription-url');
+          if(res && res.success && res.obj && res.obj.url){
+            await navigator.clipboard.writeText(res.obj.url);
+            this.$message.success(this.$t('copy') + ' ' + this.$t('success'));
+          } else {
+            this.$message.error(this.$t('validation.loadFailed'));
+          }
+        } catch(e) {
+          this.$message.error(this.$t('validation.loadFailed'));
+        }
+      },
+      enableTplMultiSub(r){
+        return this.$createElement('a-tag', { props: { color: r.enable ? 'green' : 'default' } }, [
+          this.$createElement('a-icon', { props: { type: r.enable ? 'check-circle' : 'close-circle' }, style: 'margin-right: 4px' }),
+          r.enable ? (this.$t('yes') || 'Yes') : (this.$t('no') || 'No')
+        ]);
+      },
+      nodeIdsTplMultiSub(r){
+        const nodeIds = typeof r.nodeIds === 'string' ? r.nodeIds : JSON.stringify(r.nodeIds || []);
+        return this.$createElement('span', nodeIds);
+      },
+      actionTplMultiSub(r){
+        return this.$createElement('span', [
+          this.$createElement('a-tooltip', { props: { title: this.$t('pages.multiSubscriptions.edit') || 'Edit' } }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small' },
+              on: { click: () => this.openEditMultiSub(r) }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'edit' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.multiSubscriptions.edit') || 'Edit')
+            ])
+          ]),
+          this.$createElement('a-divider', { props: { type: 'vertical' } }),
+          this.$createElement('a-tooltip', { props: { title: this.$t('copy') || 'Copy subscription URL' } }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small' },
+              on: { click: () => this.copySubUrlMultiSub(r) }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'copy' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('copy') || 'Copy')
+            ])
+          ]),
+          this.$createElement('a-divider', { props: { type: 'vertical' } }),
+          this.$createElement('a-popconfirm', {
+            props: {
+              title: this.$t('deleteConfirm') || 'Are you sure?',
+              okText: this.$t('yes') || 'Yes',
+              cancelText: this.$t('no') || 'No'
+            },
+            on: { confirm: () => this.delMultiSub(r) }
+          }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small', danger: true }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'delete' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.multiSubscriptions.delete') || 'Delete')
+            ])
+          ])
+        ]);
+      },
     },
     computed: {
       ldapInboundTagList: {
@@ -570,6 +684,7 @@
     async mounted() {
       await this.getAllSetting();
       await this.loadInboundTags();
+      await this.refreshMultiSub();
       while (true) {
         await PromiseUtil.sleep(1000);
         this.saveBtnDisable = this.oldAllSetting.equals(this.allSetting);

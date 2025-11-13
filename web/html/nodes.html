@@ -82,16 +82,8 @@
     }
   }
   
-  // Wait for components to be registered
-  let initAttempts = 0;
-  const maxInitAttempts = 20; // 20 * 50ms = 1 second max wait
+  // Initialize Vue app (similar to index.html)
   function initVueApp() {
-    initAttempts++;
-    if (initAttempts > maxInitAttempts) {
-      console.error('Failed to initialize Vue after', maxInitAttempts, 'attempts');
-      removeVCloak();
-      return;
-    }
     if (typeof Vue === 'undefined') {
       console.error('Vue is not loaded');
       removeVCloak();
@@ -105,15 +97,6 @@
     if (typeof themeSwitcher === 'undefined') {
       console.error('themeSwitcher is not defined');
       removeVCloak();
-      return;
-    }
-    // Check if components are registered (optional, continue even if not registered)
-    if (Vue.component && !Vue.component('a-sidebar') && initAttempts < maxInitAttempts) {
-      setTimeout(initVueApp, 50);
-      return;
-    }
-    if (Vue.component && !Vue.component('a-theme-switch') && initAttempts < maxInitAttempts) {
-      setTimeout(initVueApp, 50);
       return;
     }
     try {
@@ -292,13 +275,8 @@
     }
   }
   
-  // Start initialization after DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initVueApp);
-  } else {
-    // Small delay to ensure components are registered
-    setTimeout(initVueApp, 10);
-  }
+  // Start initialization immediately (components are loaded via templates)
+  setTimeout(initVueApp, 0);
 </script>
 
 {{ template "page/body_end" .}}
