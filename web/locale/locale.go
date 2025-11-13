@@ -143,6 +143,9 @@ func LocalizerMiddleware() gin.HandlerFunc {
 
 		c.Set("localizer", LocalizerWeb)
 		c.Set("I18n", I18n)
+		if lang != "" {
+			c.Set("lang", lang)
+		}
 		c.Next()
 	}
 }

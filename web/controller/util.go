@@ -152,6 +152,9 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	data["host"] = host
 	data["request_uri"] = c.Request.RequestURI
 	data["base_path"] = c.GetString("base_path")
+	if lang := c.GetString("lang"); lang != "" {
+		data["lang"] = lang
+	}
 
 	logger.Info("Rendering template:", name, "for path:", c.Request.URL.Path)
 
@@ -175,7 +178,7 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	}
 
 	c.HTML(http.StatusOK, name, contextData)
-	
+
 	// Explicitly flush to ensure gzip middleware completes compression
 	// This is critical for gzip middleware to finalize the compressed stream
 	if flusher, ok := c.Writer.(http.Flusher); ok {
@@ -188,7 +191,7 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 		contentEncoding := c.Writer.Header().Get("Content-Encoding")
 		contentType := c.Writer.Header().Get("Content-Type")
 		logger.Info("Template rendered successfully:", name, "status:", c.Writer.Status(), "size:", size, "Content-Encoding:", contentEncoding, "Content-Type:", contentType)
-		
+
 		// For problematic templates, try to capture actual response content for debugging
 		// Note: This is tricky with gzip, but we can at least check if Vue components are present
 		if (name == "nodes.html" || name == "multi_subscriptions.html" || name == "map.html") && size > 100 {
@@ -198,7 +201,7 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 			// Log that we expect Vue to work but it's not initializing
 			logger.Warning("Template", name, "rendered with correct size but Vue may not be initializing - check browser console for JavaScript errors")
 		}
-		
+
 		if size < 100 {
 			logger.Warning("Template", name, "rendered suspiciously small content:", size, "bytes")
 			// Check if response was aborted
