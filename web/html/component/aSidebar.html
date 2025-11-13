@@ -43,7 +43,7 @@
     // Ensure Vue is available before registering components
     if (typeof Vue !== 'undefined') {
       try {
-        Vue.component('a-sidebar', {
+    Vue.component('a-sidebar', {
         data() {
             return {
                 tabs: [
@@ -127,7 +127,7 @@
             }
         },
         template: `{{template "component/sidebar/content"}}`,
-        });
+    });
       } catch (e) {
         console.error('Error registering Vue sidebar component:', e);
       }

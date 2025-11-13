@@ -225,9 +225,9 @@
     },
     mounted(){ 
       console.log('Vue app mounted successfully');
-      console.log('Vue $el:', vueApp.$el);
-      console.log('Vue $el type:', vueApp.$el ? vueApp.$el.nodeType : 'null');
-      console.log('Vue $el tagName:', vueApp.$el ? vueApp.$el.tagName : 'null');
+      console.log('Vue $el:', this.$el);
+      console.log('Vue $el type:', this.$el ? this.$el.nodeType : 'null');
+      console.log('Vue $el tagName:', this.$el ? this.$el.tagName : 'null');
       
       // Force remove v-cloak to ensure content is visible
       const appElement = document.getElementById('app');
