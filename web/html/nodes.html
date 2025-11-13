@@ -130,6 +130,27 @@
       form: { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
       v: { name:{}, host:{}, port:{}, protocol:{} },
       detectingLocation: false,
+      t: {
+        validationRequired: '{{ i18n "validation.required"}}',
+        validationInvalidPort: '{{ i18n "validation.invalidPort"}}',
+        validationInvalidProtocol: '{{ i18n "validation.invalidProtocol"}}',
+        validationLoadFailed: '{{ i18n "validation.loadFailed"}}',
+        validationSaveSuccess: '{{ i18n "validation.saveSuccess"}}',
+        validationSaveFailed: '{{ i18n "validation.saveFailed"}}',
+        deleteConfirm: '{{ i18n "deleteConfirm"}}',
+        deleteConfirmDesc: '{{ i18n "deleteConfirmDesc"}}',
+        statusOnline: '{{ i18n "pages.nodes.statusOnline"}}',
+        statusOffline: '{{ i18n "pages.nodes.statusOffline"}}',
+        statusError: '{{ i18n "pages.nodes.statusError"}}',
+        statusUnknown: '{{ i18n "pages.nodes.statusUnknown"}}',
+        statusTooltipOnline: '{{ i18n "pages.nodes.statusTooltipOnline"}}',
+        statusTooltipOffline: '{{ i18n "pages.nodes.statusTooltipOffline"}}',
+        statusTooltipError: '{{ i18n "pages.nodes.statusTooltipError"}}',
+        statusTooltipUnknown: '{{ i18n "pages.nodes.statusTooltipUnknown"}}',
+        statusTooltipCheckedAt: '{{ i18n "pages.nodes.statusTooltipCheckedAt"}}',
+        detectLocationSuccess: '{{ i18n "pages.nodes.toasts.detectLocationSuccess"}}',
+        detectLocation: '{{ i18n "pages.nodes.toasts.detectLocation"}}',
+      }
     },
     computed:{
       showApiTip(){
@@ -143,10 +164,10 @@
           if (msg.success) {
             this.nodes = (msg.obj || []).map(n => Object.assign({}, n));
           } else {
-            this.$message.error(this.$t('validation.loadFailed'));
+            this.$message.error(this.t.validationLoadFailed);
           }
         } catch (e) {
-          this.$message.error(this.$t('validation.loadFailed'));
+          this.$message.error(this.t.validationLoadFailed);
         }
       },
       openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
@@ -154,10 +175,10 @@
       clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
       validate(){
         let ok = true; this.clearValidation();
-        if(!this.form.name){ this.v.name={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.host){ this.v.host={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.$t('validation.invalidPort')}; ok=false }
-        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.$t('validation.invalidProtocol')}; ok=false }
+        if(!this.form.name){ this.v.name={status:'error', help:this.t.validationRequired}; ok=false }
+        if(!this.form.host){ this.v.host={status:'error', help:this.t.validationRequired}; ok=false }
+        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.t.validationInvalidPort}; ok=false }
+        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.t.validationInvalidProtocol}; ok=false }
         return ok;
       },
       async save(){
@@ -165,16 +186,16 @@
         let res;
         if(this.form.id){ res = await HttpUtil.post('/panel/api/nodes/'+this.form.id, this.form); }
         else{ res = await HttpUtil.post('/panel/api/nodes/', this.form); }
-        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
-        else { this.$message.error(this.$t('validation.saveFailed')); }
+        if(res && res.success){ this.$message.success(this.t.validationSaveSuccess); this.modals.edit.visible=false; this.refresh(); }
+        else { this.$message.error(this.t.validationSaveFailed); }
       },
       async del(r){
         this.$confirm({
-          title: this.$t('deleteConfirm'),
-          content: this.$t('deleteConfirmDesc'),
+          title: this.t.deleteConfirm,
+          content: this.t.deleteConfirmDesc,
           onOk: async () => {
             const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete');
-            if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); }
+            if(res.success){ this.$message.success(this.t.validationSaveSuccess); } else { this.$message.error(this.t.validationSaveFailed); }
             this.refresh();
           }
         });
@@ -183,7 +204,7 @@
       async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
       async detectLocation(){
         if(!this.form.host){
-          this.$message.warning(this.$t('validation.required'));
+          this.$message.warning(this.t.validationRequired);
           return;
         }
         this.detectingLocation = true;
@@ -196,12 +217,12 @@
             this.form.city = res.obj.city || '';
             this.form.latitude = res.obj.latitude || null;
             this.form.longitude = res.obj.longitude || null;
-            this.$message.success(this.$t('pages.nodes.toasts.detectLocationSuccess'));
+            this.$message.success(this.t.detectLocationSuccess);
           } else {
-            this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
+            this.$message.error(this.t.detectLocation);
           }
         } catch(e) {
-          this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
+          this.$message.error(this.t.detectLocation);
         } finally {
           this.detectingLocation = false;
         }
@@ -222,31 +243,31 @@
       },
       getStatusLabel(status) {
         const s = (status || '').toLowerCase();
-        if (s === 'online') return this.$t('pages.nodes.statusOnline');
-        if (s === 'offline') return this.$t('pages.nodes.statusOffline');
-        if (s === 'error') return this.$t('pages.nodes.statusError');
-        return this.$t('pages.nodes.statusUnknown');
+        if (s === 'online') return this.t.statusOnline;
+        if (s === 'offline') return this.t.statusOffline;
+        if (s === 'error') return this.t.statusError;
+        return this.t.statusUnknown;
       },
       getStatusTooltip(r) {
         const status = (r.status || '').toLowerCase();
         let tip = '';
-        if (status === 'online') tip = this.$t('pages.nodes.statusTooltipOnline');
-        else if (status === 'offline') tip = this.$t('pages.nodes.statusTooltipOffline');
-        else if (status === 'error') tip = this.$t('pages.nodes.statusTooltipError');
-        else tip = this.$t('pages.nodes.statusTooltipUnknown');
+        if (status === 'online') tip = this.t.statusTooltipOnline;
+        else if (status === 'offline') tip = this.t.statusTooltipOffline;
+        else if (status === 'error') tip = this.t.statusTooltipError;
+        else tip = this.t.statusTooltipUnknown;
         if (r.lastCheck) {
-          tip += `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}`;
+          tip += `\n${this.t.statusTooltipCheckedAt}${this.formatCheckTime(r.lastCheck)}`;
         }
         return tip;
       },
       formatCheckTime(ts){
-        if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
+        if(!ts){ return this.t.statusUnknown; }
         try {
           const date = new Date(ts * 1000);
-          if(Number.isNaN(date.getTime())) return this.$t('pages.nodes.statusUnknown');
+          if(Number.isNaN(date.getTime())) return this.t.statusUnknown;
           return date.toLocaleString();
         } catch(e){
-          return this.$t('pages.nodes.statusUnknown');
+          return this.t.statusUnknown;
         }
       }
     },
