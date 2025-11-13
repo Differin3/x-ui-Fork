@@ -25,10 +25,6 @@
               <a-table-column :title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
               <a-table-column :title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
               <a-table-column :title='{{ i18n "pages.nodes.port"}}' data-index="port" key="port"/>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> fork/main
               <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status">
                 <template slot-scope="text, record">
                   <a-tooltip :title="getStatusTooltip(record)">
@@ -45,38 +41,6 @@
                 </template>
               </a-table-column>
               <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
-<<<<<<< HEAD
-
-=======
-=======
-<<<<<<< HEAD
->>>>>>> fork/main
-              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status" :customRender="(_, r)=> statusTpl(r)"/>
-              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck" :customRender="(_, r)=> lastCheckTpl(r)"/>
-              <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
-              <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action" :customRender="(_, r)=> actionTpl(r)"/>
-
-              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status">
-                <template slot-scope="text, record">
-                  <a-tooltip :title="getStatusTooltip(record)">
-                    <a-tag :color="getStatusColor(record.status)">
-                      <a-icon :type="getStatusIcon(record.status)" style="margin-right: 4px"/>
-                      [[ getStatusLabel(record.status) ]]
-                    </a-tag>
-                  </a-tooltip>
-                </template>
-              </a-table-column>
-              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck">
-                <template slot-scope="text, record">
-                  <span>[[ formatCheckTime(record.lastCheck) ]]</span>
-                </template>
-              </a-table-column>
-              <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
-<<<<<<< HEAD
-
-=======
->>>>>>> fork/main
->>>>>>> fork/main
               <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action">
                 <template slot-scope="text, record">
                   <a-space>
@@ -110,16 +74,6 @@
                   </a-space>
                 </template>
               </a-table-column>
-<<<<<<< HEAD
-
- (.)
-
-=======
-<<<<<<< HEAD
-=======
->>>>>>> b1d640e (.)
->>>>>>> fork/main
->>>>>>> fork/main
             </a-table>
           </a-col>
         </a-row>
@@ -295,108 +249,6 @@
         } catch(e){
           return this.$t('pages.nodes.statusUnknown');
         }
-        }
-      },
-      openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
-      openEdit(r){ this.form = Object.assign({}, r); this.clearValidation(); this.modals.edit.visible=true; },
-      clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
-      validate(){
-        let ok = true; this.clearValidation();
-        if(!this.form.name){ this.v.name={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.host){ this.v.host={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.$t('validation.invalidPort')}; ok=false }
-        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.$t('validation.invalidProtocol')}; ok=false }
-        return ok;
-      },
-      async save(){
-        if(!this.validate()) return;
-        let res;
-        if(this.form.id){ res = await HttpUtil.post('/panel/api/nodes/'+this.form.id, this.form); }
-        else{ res = await HttpUtil.post('/panel/api/nodes/', this.form); }
-        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
-        else { this.$message.error(this.$t('validation.saveFailed')); }
-      },
-      async del(r){
-        this.$confirm({
-          title: this.$t('deleteConfirm'),
-          content: this.$t('deleteConfirmDesc'),
-          onOk: async () => {
-            const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete');
-            if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); }
-            this.refresh();
-          }
-        });
-      },
-      async check(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/check'); this.refresh(); },
-      async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
-      async detectLocation(){
-        if(!this.form.host){
-          this.$message.warning(this.$t('validation.required') + ': ' + this.$t('pages.nodes.host'));
-          return;
-        }
-        this.detectingLocation = true;
-        try {
-          const nodeId = this.form.id || 0;
-          const res = await HttpUtil.post('/panel/api/nodes/'+nodeId+'/detect-location', { host: this.form.host });
-          if(res && res.success && res.obj){
-            this.form.location = res.obj.location || '';
-            this.form.country = res.obj.country || '';
-            this.form.city = res.obj.city || '';
-            this.form.latitude = res.obj.latitude || null;
-            this.form.longitude = res.obj.longitude || null;
-            this.$message.success(this.$t('pages.nodes.toasts.detectLocationSuccess'));
-          } else {
-            this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
-          }
-        } catch(e) {
-          this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
-        } finally {
-          this.detectingLocation = false;
-        }
-      },
-      getStatusColor(status) {
-        const s = (status || '').toLowerCase();
-        if (s === 'online') return 'green';
-        if (s === 'offline') return 'red';
-        if (s === 'error') return 'orange';
-        return 'default';
-      },
-      getStatusIcon(status) {
-        const s = (status || '').toLowerCase();
-        if (s === 'online') return 'check-circle';
-        if (s === 'offline') return 'close-circle';
-        if (s === 'error') return 'exclamation-circle';
-        return 'question-circle';
-      },
-      getStatusLabel(status) {
-        const s = (status || '').toLowerCase();
-        if (s === 'online') return this.$t('pages.nodes.statusOnline');
-        if (s === 'offline') return this.$t('pages.nodes.statusOffline');
-        if (s === 'error') return this.$t('pages.nodes.statusError');
-        return this.$t('pages.nodes.statusUnknown');
-      },
-      getStatusTooltip(r) {
-        const status = (r.status || '').toLowerCase();
-        let tip = '';
-        if (status === 'online') tip = this.$t('pages.nodes.statusTooltipOnline');
-        else if (status === 'offline') tip = this.$t('pages.nodes.statusTooltipOffline');
-        else if (status === 'error') tip = this.$t('pages.nodes.statusTooltipError');
-        else tip = this.$t('pages.nodes.statusTooltipUnknown');
-        if (r.lastCheck) {
-          tip += `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}`;
-        }
-        return tip;
-      },
-      formatCheckTime(ts){
-        if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
-        try {
-          const date = new Date(ts * 1000);
-          if(Number.isNaN(date.getTime())) return this.$t('pages.nodes.statusUnknown');
-          return date.toLocaleString();
-        } catch(e){
-          return this.$t('pages.nodes.statusUnknown');
-        }
-        b1d640e (.)
       }
     },
     mounted(){
