@@ -7,16 +7,46 @@
   <a-layout id="content-layout">
     <a-layout-content>
       <div style="padding: 20px;">
-        <h1>Nodes Page</h1>
-        <p>Test: [[ message ]]</p>
-        <a-button @click="refresh">Refresh</a-button>
-        <div v-if="nodes.length > 0">
-          <p>Found [[ nodes.length ]] nodes</p>
-        </div>
-        <div v-else>
-          <p>No nodes</p>
-        </div>
+        <a-page-header title="Nodes">
+          <template slot="extra">
+            <a-button type="primary" icon="plus" @click="openAdd">Add</a-button>
+            <a-button icon="sync" @click="refresh">Refresh</a-button>
+          </template>
+        </a-page-header>
+        <a-table :data-source="nodes" :row-key="'id'" :pagination="false" style="margin-top: 20px;">
+          <a-table-column title="ID" data-index="id" key="id"/>
+          <a-table-column title="Name" data-index="name" key="name"/>
+          <a-table-column title="Host" data-index="host" key="host"/>
+          <a-table-column title="Port" data-index="port" key="port"/>
+          <a-table-column title="Status" key="status">
+            <template slot-scope="text, record">
+              <a-tag :color="getStatusColor(record.status)">[[ record.status || 'unknown' ]]</a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column title="Actions" key="action">
+            <template slot-scope="text, record">
+              <a-button size="small" @click="openEdit(record)">Edit</a-button>
+              <a-button size="small" danger @click="del(record)">Delete</a-button>
+            </template>
+          </a-table-column>
+        </a-table>
       </div>
+
+      <a-modal :visible="modals.edit.visible" title="Node" @cancel="modals.edit.visible=false" @ok="save">
+        <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
+          <a-form-item label="Name"><a-input v-model="form.name"/></a-form-item>
+          <a-form-item label="Host"><a-input v-model="form.host"/></a-form-item>
+          <a-form-item label="Port"><a-input-number v-model="form.port" :min="1"/></a-form-item>
+          <a-form-item label="Protocol">
+            <a-select v-model="form.protocol">
+              <a-select-option value="https">https</a-select-option>
+              <a-select-option value="http">http</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="API Key"><a-input v-model="form.apiKey"/></a-form-item>
+          <a-form-item label="Enabled"><a-switch v-model="form.enable"/></a-form-item>
+        </a-form>
+      </a-modal>
     </a-layout-content>
   </a-layout>
 </a-layout>
@@ -30,8 +60,9 @@
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
-      message: 'Vue is working!',
       nodes: [],
+      modals: { edit: { visible: false } },
+      form: { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', enable: true },
     },
     methods: {
       async refresh() {
@@ -39,11 +70,49 @@
           const msg = await HttpUtil.get('/panel/api/nodes/');
           if (msg.success) {
             this.nodes = msg.obj || [];
-            this.$message.success('Loaded');
           }
         } catch (e) {
-          this.$message.error('Error');
+          this.$message.error('Load failed');
         }
+      },
+      getStatusColor(status) {
+        const s = (status || '').toLowerCase();
+        if (s === 'online') return 'green';
+        if (s === 'offline') return 'red';
+        if (s === 'error') return 'orange';
+        return 'default';
+      },
+      openAdd() {
+        this.form = { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', enable: true };
+        this.modals.edit.visible = true;
+      },
+      openEdit(r) {
+        this.form = Object.assign({}, r);
+        this.modals.edit.visible = true;
+      },
+      async save() {
+        let res;
+        if (this.form.id) {
+          res = await HttpUtil.post('/panel/api/nodes/' + this.form.id, this.form);
+        } else {
+          res = await HttpUtil.post('/panel/api/nodes/', this.form);
+        }
+        if (res && res.success) {
+          this.$message.success('Saved');
+          this.modals.edit.visible = false;
+          this.refresh();
+        } else {
+          this.$message.error('Save failed');
+        }
+      },
+      async del(r) {
+        const res = await HttpUtil.post('/panel/api/nodes/' + r.id + '/delete');
+        if (res.success) {
+          this.$message.success('Deleted');
+        } else {
+          this.$message.error('Delete failed');
+        }
+        this.refresh();
       }
     },
     mounted() {
