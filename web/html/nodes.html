@@ -6,66 +6,17 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <a-spin :spinning="loadingStates.spinning" :delay="200" :tip="loadingTip">
-        <a-row :gutter="[16,16]">
-          <a-col :span="24">
-            <a-page-header :title='{{ i18n "pages.nodes.title"}}'>
-              <template slot="extra">
-                <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.nodes.add"}}</a-button>
-                <a-button icon="sync" @click="refresh">{{ i18n "pages.nodes.refresh"}}</a-button>
-              </template>
-            </a-page-header>
-          </a-col>
-          <a-col :span="24" v-if="showApiTip">
-            <a-alert type="warning" show-icon :message='{{ i18n "pages.nodes.tipApiKey"}}'></a-alert>
-          </a-col>
-          <a-col :span="24">
-            <a-table :data-source="nodes" :row-key="'id'" :pagination="false">
-              <a-table-column :title='{{ i18n "pages.nodes.nodeId"}}' data-index="id" key="id"/>
-              <a-table-column :title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
-              <a-table-column :title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
-              <a-table-column :title='{{ i18n "pages.nodes.port"}}' data-index="port" key="port"/>
-              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status" :customRender="(_, r)=> statusTpl(r)"/>
-              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck" :customRender="(_, r)=> lastCheckTpl(r)"/>
-              <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
-              <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action" :customRender="(_, r)=> actionTpl(r)"/>
-            </a-table>
-          </a-col>
-        </a-row>
-
-        <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.nodes.title"}}' :footer="null" @cancel="modals.edit.visible=false">
-          <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
-            <a-form-item :label='{{ i18n "pages.nodes.name"}}' :validate-status="v.name.status" :help="v.name.help"><a-input v-model="form.name" :placeholder="$t('pages.nodes.namePlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.host"}}' :validate-status="v.host.status" :help="v.host.help"><a-input v-model="form.host" :placeholder="$t('pages.nodes.hostPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.port"}}' :validate-status="v.port.status" :help="v.port.help"><a-input-number v-model="form.port" :min="1" :placeholder="$t('pages.nodes.portPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.protocol"}}' :validate-status="v.protocol.status" :help="v.protocol.help">
-              <a-select v-model="form.protocol">
-                <a-select-option value="https">https</a-select-option>
-                <a-select-option value="http">http</a-select-option>
-              </a-select>
-            </a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.apiKey"}}'><a-input v-model="form.apiKey" :placeholder="$t('pages.nodes.apiKeyPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.location"}}'><a-input v-model="form.location" :placeholder="$t('pages.nodes.locationPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.country"}}'><a-input v-model="form.country" :placeholder="$t('pages.nodes.countryPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.city"}}'><a-input v-model="form.city" :placeholder="$t('pages.nodes.cityPlaceholder')"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.latitude"}}'><a-input-number v-model="form.latitude" :step="0.0001" :placeholder="$t('pages.nodes.latitudePlaceholder')" style="width: 100%;"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.longitude"}}'>
-              <a-input-number v-model="form.longitude" :step="0.0001" :placeholder="$t('pages.nodes.longitudePlaceholder')" style="width: 100%;"/>
-              <a-tooltip slot="extra" :title="$t('pages.nodes.detectLocationTooltip')">
-                <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation">{{ i18n "pages.nodes.detectLocation"}}</a-button>
-              </a-tooltip>
-            </a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.remark"}}'><a-textarea v-model="form.remark" :placeholder="$t('pages.nodes.remarkPlaceholder')" :auto-size="{minRows:2,maxRows:4}"/></a-form-item>
-            <a-form-item :label='{{ i18n "pages.nodes.enabled"}}'><a-switch v-model="form.enable"/></a-form-item>
-            <a-form-item :wrapper-col="{span:16, offset:6}">
-              <a-space>
-                <a-button type="primary" @click="save">{{ i18n "update"}}</a-button>
-                <a-button @click="modals.edit.visible=false">{{ i18n "cancel"}}</a-button>
-              </a-space>
-            </a-form-item>
-          </a-form>
-        </a-modal>
-      </a-spin>
+      <div style="padding: 20px;">
+        <h1>Nodes Page</h1>
+        <p>Test: [[ message ]]</p>
+        <a-button @click="refresh">Refresh</a-button>
+        <div v-if="nodes.length > 0">
+          <p>Found [[ nodes.length ]] nodes</p>
+        </div>
+        <div v-else>
+          <p>No nodes</p>
+        </div>
+      </div>
     </a-layout-content>
   </a-layout>
 </a-layout>
@@ -73,170 +24,31 @@
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
-  new Vue({
+  const app = new Vue({
     delimiters: ['[[', ']]'],
     el: '#app',
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
-      loadingStates: { fetched: false, spinning: false },
-      loadingTip: '{{ i18n "loading"}}',
+      message: 'Vue is working!',
       nodes: [],
-      modals: { edit: { visible: false } },
-      form: { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
-      v: { name:{}, host:{}, port:{}, protocol:{} },
-      detectingLocation: false,
-    },
-    computed:{
-      showApiTip(){
-        return this.nodes.some(n => !n.apiKey || n.apiKey.length===0)
-      }
     },
     methods: {
       async refresh() {
         try {
           const msg = await HttpUtil.get('/panel/api/nodes/');
           if (msg.success) {
-            this.nodes = (msg.obj || []).map(n => Object.assign({}, n));
-          } else {
-            this.$message.error(this.$t('validation.loadFailed'));
+            this.nodes = msg.obj || [];
+            this.$message.success('Loaded');
           }
         } catch (e) {
-          this.$message.error(this.$t('validation.loadFailed'));
-        }
-      },
-      openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
-      openEdit(r){ this.form = Object.assign({}, r); this.clearValidation(); this.modals.edit.visible=true; },
-      clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
-      validate(){
-        let ok = true; this.clearValidation();
-        if(!this.form.name){ this.v.name={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.host){ this.v.host={status:'error', help:this.$t('validation.required')}; ok=false }
-        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.$t('validation.invalidPort')}; ok=false }
-        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.$t('validation.invalidProtocol')}; ok=false }
-        return ok;
-      },
-      async save(){
-        if(!this.validate()) return;
-        let res;
-        if(this.form.id){ res = await HttpUtil.post('/panel/api/nodes/'+this.form.id, this.form); }
-        else{ res = await HttpUtil.post('/panel/api/nodes/', this.form); }
-        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
-        else { this.$message.error(this.$t('validation.saveFailed')); }
-      },
-      async del(r){ const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete'); if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); } this.refresh(); },
-      async check(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/check'); this.refresh(); },
-      async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
-      async detectLocation(){
-        if(!this.form.host){
-          this.$message.warning(this.$t('validation.required') + ': ' + this.$t('pages.nodes.host'));
-          return;
-        }
-        this.detectingLocation = true;
-        try {
-          const nodeId = this.form.id || 0;
-          const res = await HttpUtil.post('/panel/api/nodes/'+nodeId+'/detect-location', { host: this.form.host });
-          if(res && res.success && res.obj){
-            this.form.location = res.obj.location || '';
-            this.form.country = res.obj.country || '';
-            this.form.city = res.obj.city || '';
-            this.form.latitude = res.obj.latitude || null;
-            this.form.longitude = res.obj.longitude || null;
-            this.$message.success(this.$t('pages.nodes.toasts.detectLocationSuccess'));
-          } else {
-            this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
-          }
-        } catch(e) {
-          this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
-        } finally {
-          this.detectingLocation = false;
-        }
-      },
-      actionTpl(r){
-        return this.$createElement('span', [
-          this.$createElement('a-tooltip', { props: { title: this.$t('edit') || 'Edit' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.openEdit(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'edit' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('edit') || 'Edit')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.check') || 'Check Status' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.check(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'check-circle' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.check') || 'Check')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.sync') || 'Sync Stats' } }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small' },
-              on: { click: () => this.sync(r) }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'sync' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.sync') || 'Sync')
-            ])
-          ]),
-          this.$createElement('a-divider', { props: { type: 'vertical' } }),
-          this.$createElement('a-popconfirm', {
-            props: {
-              title: this.$t('deleteConfirm') || 'Are you sure?',
-              okText: this.$t('yes') || 'Yes',
-              cancelText: this.$t('no') || 'No'
-            },
-            on: { confirm: () => this.del(r) }
-          }, [
-            this.$createElement('a-button', { 
-              props: { type: 'link', size: 'small', danger: true }
-            }, [
-              this.$createElement('a-icon', { props: { type: 'delete' } }),
-              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('delete') || 'Delete')
-            ])
-          ])
-        ]);
-      },
-      statusTpl(r){
-        const status = (r.status || '').toLowerCase();
-        const map = {
-          online: { color: 'green', icon: 'check-circle', label: this.$t('pages.nodes.statusOnline'), tip: this.$t('pages.nodes.statusTooltipOnline') },
-          offline: { color: 'red', icon: 'close-circle', label: this.$t('pages.nodes.statusOffline'), tip: this.$t('pages.nodes.statusTooltipOffline') },
-          error: { color: 'orange', icon: 'exclamation-circle', label: this.$t('pages.nodes.statusError'), tip: this.$t('pages.nodes.statusTooltipError') },
-          unknown: { color: 'default', icon: 'question-circle', label: this.$t('pages.nodes.statusUnknown'), tip: this.$t('pages.nodes.statusTooltipUnknown') },
-        };
-        const info = map[status] || map.unknown;
-        const title = info.tip + (r.lastCheck ? `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}` : '');
-        const tag = this.$createElement('a-tag', { props: { color: info.color } }, [
-          this.$createElement('a-icon', { props: { type: info.icon }, style: 'margin-right: 4px' }),
-          info.label
-        ]);
-        return this.$createElement('a-tooltip', { props: { title } }, [tag]);
-      },
-      lastCheckTpl(r){
-        if(!r.lastCheck){ return this.$createElement('span', this.$t('pages.nodes.statusUnknown')); }
-        return this.$createElement('span', this.formatCheckTime(r.lastCheck));
-      },
-      formatCheckTime(ts){
-        if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
-        try {
-          const date = new Date(ts * 1000);
-          if(Number.isNaN(date.getTime())) return this.$t('pages.nodes.statusUnknown');
-          return date.toLocaleString();
-        } catch(e){
-          return this.$t('pages.nodes.statusUnknown');
+          this.$message.error('Error');
         }
       }
     },
-    mounted(){
-      this.loadingStates.fetched = true;
+    mounted() {
       this.refresh();
     }
   });
 </script>
-
 {{ template "page/body_end" .}}
