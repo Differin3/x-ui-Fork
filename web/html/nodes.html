@@ -6,85 +6,66 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <div style="padding: 20px;">
-        <a-page-header title="Nodes">
-          <template slot="extra">
-            <a-button type="primary" icon="plus" @click="openAdd">Add</a-button>
-            <a-button icon="sync" @click="refresh">Refresh</a-button>
-          </template>
-        </a-page-header>
-        <a-table :data-source="nodes" :row-key="'id'" :pagination="false" style="margin-top: 20px;">
-          <a-table-column title="ID" data-index="id" key="id"/>
-          <a-table-column title="Name" data-index="name" key="name"/>
-          <a-table-column title="Host" data-index="host" key="host"/>
-          <a-table-column title="Port" data-index="port" key="port"/>
-          <a-table-column title="Status" key="status">
-            <template slot-scope="text, record">
-              <a-tag :color="getStatusColor(record.status)">[[ record.status || 'unknown' ]]</a-tag>
-            </template>
-          </a-table-column>
-          <a-table-column title="Remark" data-index="remark" key="remark"/>
-          <a-table-column title="Actions" key="action">
-            <template slot-scope="text, record">
-              <a-button size="small" @click="openEdit(record)">Edit</a-button>
-              <a-button size="small" @click="check(record)">Check</a-button>
-              <a-button size="small" @click="sync(record)">Sync</a-button>
-              <a-button size="small" danger @click="del(record)">Delete</a-button>
-            </template>
-          </a-table-column>
-        </a-table>
-      </div>
+      <a-spin :spinning="loadingStates.spinning" :delay="200" :tip="loadingTip">
+        <a-row :gutter="[16,16]">
+          <a-col :span="24">
+            <a-page-header :title='{{ i18n "pages.nodes.title"}}'>
+              <template slot="extra">
+                <a-button type="primary" icon="plus" @click="openAdd">{{ i18n "pages.nodes.add"}}</a-button>
+                <a-button icon="sync" @click="refresh">{{ i18n "pages.nodes.refresh"}}</a-button>
+              </template>
+            </a-page-header>
+          </a-col>
+          <a-col :span="24" v-if="showApiTip">
+            <a-alert type="warning" show-icon :message='{{ i18n "pages.nodes.tipApiKey"}}'></a-alert>
+          </a-col>
+          <a-col :span="24">
+            <a-table :data-source="nodes" :row-key="'id'" :pagination="false">
+              <a-table-column :title='{{ i18n "pages.nodes.nodeId"}}' data-index="id" key="id"/>
+              <a-table-column :title='{{ i18n "pages.nodes.name"}}' data-index="name" key="name"/>
+              <a-table-column :title='{{ i18n "pages.nodes.host"}}' data-index="host" key="host"/>
+              <a-table-column :title='{{ i18n "pages.nodes.port"}}' data-index="port" key="port"/>
+              <a-table-column :title='{{ i18n "pages.nodes.status"}}' key="status" :customRender="(_, r)=> statusTpl(r)"/>
+              <a-table-column :title='{{ i18n "pages.nodes.lastCheck"}}' key="lastCheck" :customRender="(_, r)=> lastCheckTpl(r)"/>
+              <a-table-column :title='{{ i18n "pages.nodes.remark"}}' data-index="remark" key="remark"/>
+              <a-table-column :title='{{ i18n "pages.nodes.actions"}}' key="action" :customRender="(_, r)=> actionTpl(r)"/>
+            </a-table>
+          </a-col>
+        </a-row>
 
-      <a-modal :visible="modals.edit.visible" title="Node" :footer="null" @cancel="modals.edit.visible=false">
-        <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
-          <a-form-item label="Name" :validate-status="v.name.status" :help="v.name.help">
-            <a-input v-model="form.name"/>
-          </a-form-item>
-          <a-form-item label="Host" :validate-status="v.host.status" :help="v.host.help">
-            <a-input v-model="form.host"/>
-          </a-form-item>
-          <a-form-item label="Port" :validate-status="v.port.status" :help="v.port.help">
-            <a-input-number v-model="form.port" :min="1" :max="65535" style="width: 100%;"/>
-          </a-form-item>
-          <a-form-item label="Protocol" :validate-status="v.protocol.status" :help="v.protocol.help">
-            <a-select v-model="form.protocol">
-              <a-select-option value="https">https</a-select-option>
-              <a-select-option value="http">http</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="API Key">
-            <a-input v-model="form.apiKey"/>
-          </a-form-item>
-          <a-form-item label="Location">
-            <a-input v-model="form.location"/>
-          </a-form-item>
-          <a-form-item label="Country">
-            <a-input v-model="form.country"/>
-          </a-form-item>
-          <a-form-item label="City">
-            <a-input v-model="form.city"/>
-          </a-form-item>
-          <a-form-item label="Latitude">
-            <a-input-number v-model="form.latitude" :step="0.0001" style="width: 100%;"/>
-          </a-form-item>
-          <a-form-item label="Longitude">
-            <a-input-number v-model="form.longitude" :step="0.0001" style="width: 100%;"/>
-            <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation" style="margin-left: 8px;">Detect</a-button>
-          </a-form-item>
-          <a-form-item label="Remark">
-            <a-textarea v-model="form.remark" :auto-size="{minRows:2,maxRows:4}"/>
-          </a-form-item>
-          <a-form-item label="Enabled">
-            <a-switch v-model="form.enable"/>
-          </a-form-item>
-          <a-form-item :wrapper-col="{span:16, offset:6}">
-            <a-space>
-              <a-button type="primary" @click="save">Save</a-button>
-              <a-button @click="modals.edit.visible=false">Cancel</a-button>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </a-modal>
+        <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.nodes.title"}}' :footer="null" @cancel="modals.edit.visible=false">
+          <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
+            <a-form-item :label='{{ i18n "pages.nodes.name"}}' :validate-status="v.name.status" :help="v.name.help"><a-input v-model="form.name" :placeholder="$t('pages.nodes.namePlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.host"}}' :validate-status="v.host.status" :help="v.host.help"><a-input v-model="form.host" :placeholder="$t('pages.nodes.hostPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.port"}}' :validate-status="v.port.status" :help="v.port.help"><a-input-number v-model="form.port" :min="1" :placeholder="$t('pages.nodes.portPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.protocol"}}' :validate-status="v.protocol.status" :help="v.protocol.help">
+              <a-select v-model="form.protocol">
+                <a-select-option value="https">https</a-select-option>
+                <a-select-option value="http">http</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.apiKey"}}'><a-input v-model="form.apiKey" :placeholder="$t('pages.nodes.apiKeyPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.location"}}'><a-input v-model="form.location" :placeholder="$t('pages.nodes.locationPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.country"}}'><a-input v-model="form.country" :placeholder="$t('pages.nodes.countryPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.city"}}'><a-input v-model="form.city" :placeholder="$t('pages.nodes.cityPlaceholder')"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.latitude"}}'><a-input-number v-model="form.latitude" :step="0.0001" :placeholder="$t('pages.nodes.latitudePlaceholder')" style="width: 100%;"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.longitude"}}'>
+              <a-input-number v-model="form.longitude" :step="0.0001" :placeholder="$t('pages.nodes.longitudePlaceholder')" style="width: 100%;"/>
+              <a-tooltip slot="extra" :title="$t('pages.nodes.detectLocationTooltip')">
+                <a-button type="link" size="small" icon="environment" @click="detectLocation" :loading="detectingLocation">{{ i18n "pages.nodes.detectLocation"}}</a-button>
+              </a-tooltip>
+            </a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.remark"}}'><a-textarea v-model="form.remark" :placeholder="$t('pages.nodes.remarkPlaceholder')" :auto-size="{minRows:2,maxRows:4}"/></a-form-item>
+            <a-form-item :label='{{ i18n "pages.nodes.enabled"}}'><a-switch v-model="form.enable"/></a-form-item>
+            <a-form-item :wrapper-col="{span:16, offset:6}">
+              <a-space>
+                <a-button type="primary" @click="save">{{ i18n "update"}}</a-button>
+                <a-button @click="modals.edit.visible=false">{{ i18n "cancel"}}</a-button>
+              </a-space>
+            </a-form-item>
+          </a-form>
+        </a-modal>
+      </a-spin>
     </a-layout-content>
   </a-layout>
 </a-layout>
@@ -98,129 +79,161 @@
     mixins: [MediaQueryMixin],
     data: {
       themeSwitcher,
+      loadingStates: { fetched: false, spinning: false },
+      loadingTip: '{{ i18n "loading"}}',
       nodes: [],
       modals: { edit: { visible: false } },
-      form: { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', location: '', country: '', city: '', latitude: null, longitude: null, remark: '', enable: true },
-      v: { name: {}, host: {}, port: {}, protocol: {} },
+      form: { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
+      v: { name:{}, host:{}, port:{}, protocol:{} },
       detectingLocation: false,
+    },
+    computed:{
+      showApiTip(){
+        return this.nodes.some(n => !n.apiKey || n.apiKey.length===0)
+      }
     },
     methods: {
       async refresh() {
         try {
           const msg = await HttpUtil.get('/panel/api/nodes/');
           if (msg.success) {
-            this.nodes = msg.obj || [];
+            this.nodes = (msg.obj || []).map(n => Object.assign({}, n));
+          } else {
+            this.$message.error(this.$t('validation.loadFailed'));
           }
         } catch (e) {
-          this.$message.error('Load failed');
+          this.$message.error(this.$t('validation.loadFailed'));
         }
       },
-      getStatusColor(status) {
-        const s = (status || '').toLowerCase();
-        if (s === 'online') return 'green';
-        if (s === 'offline') return 'red';
-        if (s === 'error') return 'orange';
-        return 'default';
-      },
-      openAdd() {
-        this.form = { id: null, name: '', host: '', port: 5050, protocol: 'https', apiKey: '', location: '', country: '', city: '', latitude: null, longitude: null, remark: '', enable: true };
-        this.clearValidation();
-        this.modals.edit.visible = true;
-      },
-      openEdit(r) {
-        this.form = Object.assign({}, r);
-        this.clearValidation();
-        this.modals.edit.visible = true;
-      },
-      clearValidation() {
-        this.v = { name: {}, host: {}, port: {}, protocol: {} };
-      },
-      validate() {
-        let ok = true;
-        this.clearValidation();
-        if (!this.form.name) {
-          this.v.name = { status: 'error', help: 'Required' };
-          ok = false;
-        }
-        if (!this.form.host) {
-          this.v.host = { status: 'error', help: 'Required' };
-          ok = false;
-        }
-        if (!this.form.port || this.form.port < 1 || this.form.port > 65535) {
-          this.v.port = { status: 'error', help: 'Invalid port' };
-          ok = false;
-        }
-        if (!['http', 'https'].includes(this.form.protocol)) {
-          this.v.protocol = { status: 'error', help: 'Invalid protocol' };
-          ok = false;
-        }
+      openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
+      openEdit(r){ this.form = Object.assign({}, r); this.clearValidation(); this.modals.edit.visible=true; },
+      clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
+      validate(){
+        let ok = true; this.clearValidation();
+        if(!this.form.name){ this.v.name={status:'error', help:this.$t('validation.required')}; ok=false }
+        if(!this.form.host){ this.v.host={status:'error', help:this.$t('validation.required')}; ok=false }
+        if(!this.form.port || this.form.port<1 || this.form.port>65535){ this.v.port={status:'error', help:this.$t('validation.invalidPort')}; ok=false }
+        if(!['http','https'].includes(this.form.protocol)){ this.v.protocol={status:'error', help:this.$t('validation.invalidProtocol')}; ok=false }
         return ok;
       },
-      async save() {
-        if (!this.validate()) return;
+      async save(){
+        if(!this.validate()) return;
         let res;
-        if (this.form.id) {
-          res = await HttpUtil.post('/panel/api/nodes/' + this.form.id, this.form);
-        } else {
-          res = await HttpUtil.post('/panel/api/nodes/', this.form);
-        }
-        if (res && res.success) {
-          this.$message.success('Saved');
-          this.modals.edit.visible = false;
-          this.refresh();
-        } else {
-          this.$message.error('Save failed');
-        }
+        if(this.form.id){ res = await HttpUtil.post('/panel/api/nodes/'+this.form.id, this.form); }
+        else{ res = await HttpUtil.post('/panel/api/nodes/', this.form); }
+        if(res && res.success){ this.$message.success(this.$t('validation.saveSuccess')); this.modals.edit.visible=false; this.refresh(); }
+        else { this.$message.error(this.$t('validation.saveFailed')); }
       },
-      async check(r) {
-        await HttpUtil.post('/panel/api/nodes/' + r.id + '/check');
-        this.refresh();
-      },
-      async sync(r) {
-        await HttpUtil.post('/panel/api/nodes/' + r.id + '/sync');
-      },
-      async detectLocation() {
-        if (!this.form.host) {
-          this.$message.warning('Host is required');
+      async del(r){ const res = await HttpUtil.post('/panel/api/nodes/'+r.id+'/delete'); if(res.success){ this.$message.success(this.$t('validation.saveSuccess')); } else { this.$message.error(this.$t('validation.saveFailed')); } this.refresh(); },
+      async check(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/check'); this.refresh(); },
+      async sync(r){ await HttpUtil.post('/panel/api/nodes/'+r.id+'/sync'); },
+      async detectLocation(){
+        if(!this.form.host){
+          this.$message.warning(this.$t('validation.required') + ': ' + this.$t('pages.nodes.host'));
           return;
         }
         this.detectingLocation = true;
         try {
           const nodeId = this.form.id || 0;
-          const res = await HttpUtil.post('/panel/api/nodes/' + nodeId + '/detect-location', { host: this.form.host });
-          if (res && res.success && res.obj) {
+          const res = await HttpUtil.post('/panel/api/nodes/'+nodeId+'/detect-location', { host: this.form.host });
+          if(res && res.success && res.obj){
             this.form.location = res.obj.location || '';
             this.form.country = res.obj.country || '';
             this.form.city = res.obj.city || '';
             this.form.latitude = res.obj.latitude || null;
             this.form.longitude = res.obj.longitude || null;
-            this.$message.success('Location detected');
+            this.$message.success(this.$t('pages.nodes.toasts.detectLocationSuccess'));
           } else {
-            this.$message.error('Failed to detect location');
+            this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
           }
-        } catch (e) {
-          this.$message.error('Failed to detect location');
+        } catch(e) {
+          this.$message.error(this.$t('pages.nodes.toasts.detectLocation'));
         } finally {
           this.detectingLocation = false;
         }
       },
-      async del(r) {
-        this.$confirm({
-          title: 'Delete node?',
-          content: 'Are you sure?',
-          onOk: async () => {
-            const res = await HttpUtil.post('/panel/api/nodes/' + r.id + '/delete');
-            if (res.success) {
-              this.$message.success('Deleted');
-            } else {
-              this.$message.error('Delete failed');
-            }
-            this.refresh();
-          }
-        });
+      actionTpl(r){
+        return this.$createElement('span', [
+          this.$createElement('a-tooltip', { props: { title: this.$t('edit') || 'Edit' } }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small' },
+              on: { click: () => this.openEdit(r) }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'edit' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('edit') || 'Edit')
+            ])
+          ]),
+          this.$createElement('a-divider', { props: { type: 'vertical' } }),
+          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.check') || 'Check Status' } }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small' },
+              on: { click: () => this.check(r) }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'check-circle' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.check') || 'Check')
+            ])
+          ]),
+          this.$createElement('a-divider', { props: { type: 'vertical' } }),
+          this.$createElement('a-tooltip', { props: { title: this.$t('pages.nodes.sync') || 'Sync Stats' } }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small' },
+              on: { click: () => this.sync(r) }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'sync' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('pages.nodes.sync') || 'Sync')
+            ])
+          ]),
+          this.$createElement('a-divider', { props: { type: 'vertical' } }),
+          this.$createElement('a-popconfirm', {
+            props: {
+              title: this.$t('deleteConfirm') || 'Are you sure?',
+              okText: this.$t('yes') || 'Yes',
+              cancelText: this.$t('no') || 'No'
+            },
+            on: { confirm: () => this.del(r) }
+          }, [
+            this.$createElement('a-button', { 
+              props: { type: 'link', size: 'small', danger: true }
+            }, [
+              this.$createElement('a-icon', { props: { type: 'delete' } }),
+              this.$createElement('span', { style: 'margin-left: 4px' }, this.$t('delete') || 'Delete')
+            ])
+          ])
+        ]);
+      },
+      statusTpl(r){
+        const status = (r.status || '').toLowerCase();
+        const map = {
+          online: { color: 'green', icon: 'check-circle', label: this.$t('pages.nodes.statusOnline'), tip: this.$t('pages.nodes.statusTooltipOnline') },
+          offline: { color: 'red', icon: 'close-circle', label: this.$t('pages.nodes.statusOffline'), tip: this.$t('pages.nodes.statusTooltipOffline') },
+          error: { color: 'orange', icon: 'exclamation-circle', label: this.$t('pages.nodes.statusError'), tip: this.$t('pages.nodes.statusTooltipError') },
+          unknown: { color: 'default', icon: 'question-circle', label: this.$t('pages.nodes.statusUnknown'), tip: this.$t('pages.nodes.statusTooltipUnknown') },
+        };
+        const info = map[status] || map.unknown;
+        const title = info.tip + (r.lastCheck ? `\n${this.$t('pages.nodes.statusTooltipCheckedAt')}${this.formatCheckTime(r.lastCheck)}` : '');
+        const tag = this.$createElement('a-tag', { props: { color: info.color } }, [
+          this.$createElement('a-icon', { props: { type: info.icon }, style: 'margin-right: 4px' }),
+          info.label
+        ]);
+        return this.$createElement('a-tooltip', { props: { title } }, [tag]);
+      },
+      lastCheckTpl(r){
+        if(!r.lastCheck){ return this.$createElement('span', this.$t('pages.nodes.statusUnknown')); }
+        return this.$createElement('span', this.formatCheckTime(r.lastCheck));
+      },
+      formatCheckTime(ts){
+        if(!ts){ return this.$t('pages.nodes.statusUnknown'); }
+        try {
+          const date = new Date(ts * 1000);
+          if(Number.isNaN(date.getTime())) return this.$t('pages.nodes.statusUnknown');
+          return date.toLocaleString();
+        } catch(e){
+          return this.$t('pages.nodes.statusUnknown');
+        }
       }
     },
-    mounted() {
+    mounted(){
+      this.loadingStates.fetched = true;
       this.refresh();
     }
   });

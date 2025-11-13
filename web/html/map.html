@@ -1,7 +1,4 @@
 {{ template "page/head_start" .}}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 {{ template "page/head_end" .}}
 
 {{ template "page/body_start" .}}
@@ -9,221 +6,154 @@
   <a-sidebar></a-sidebar>
   <a-layout id="content-layout">
     <a-layout-content>
-      <a-spin :spinning="loadingStates.spinning" :delay="200" :tip="loadingTip">
-        <a-row :gutter="[16,16]">
-          <a-col :span="24">
-            <a-page-header :title='{{ i18n "pages.map.title"}}'>
-              <template slot="extra">
-                <a-button icon="sync" @click="refresh">{{ i18n "pages.map.refresh"}}</a-button>
-              </template>
-            </a-page-header>
-          </a-col>
-          <a-col :span="24">
-            <a-card :class="'map-card ' + themeSwitcher.currentTheme" :bodyStyle="{ padding: 0 }">
-              <div id="world-map"></div>
-            </a-card>
-          </a-col>
-        </a-row>
-      </a-spin>
+      <div style="padding: 20px;">
+        <a-page-header title="Map">
+          <template slot="extra">
+            <a-button icon="sync" @click="refresh">Refresh</a-button>
+          </template>
+        </a-page-header>
+        <div style="margin-top: 20px;">
+          <div id="world-map" style="width: 100%; height: 600px; border: 1px solid #d9d9d9; border-radius: 4px;"></div>
+        </div>
+      </div>
     </a-layout-content>
   </a-layout>
 </a-layout>
 {{template "page/body_scripts" .}}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
-  new Vue({
-      delimiters: ['[[', ']]'],
-      el: '#app',
-      mixins: [MediaQueryMixin],
-      data: {
-        themeSwitcher,
-        loadingStates: { fetched: false, spinning: false },
-        loadingTip: '{{ i18n "loading"}}',
-        nodes: [],
-        map: null,
-        tiles: null,
-        markers: [],
-        markerCluster: null,
-      },
-      methods: {
-        async refresh() {
+  const app = new Vue({
+    delimiters: ['[[', ']]'],
+    el: '#app',
+    mixins: [MediaQueryMixin],
+    data: {
+      themeSwitcher,
+      nodes: [],
+      map: null,
+      tiles: null,
+      markers: [],
+      markerCluster: null,
+    },
+    methods: {
+      async refresh() {
+        try {
           const msg = await HttpUtil.get('/panel/api/dashboard/map');
           if (msg.success) {
             this.nodes = (msg.obj || []).filter(n => n.latitude && n.longitude);
             this.renderMap();
           }
-        },
-        tileUrl() {
-          const isDark = this.themeSwitcher.isDarkTheme;
-          // Carto tiles: light vs dark to match panel themes
-          return isDark
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-        },
-        tileAttribution() {
-          return '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-        },
-        markerColor(status) {
-          switch (String(status).toLowerCase()) {
-            case 'online': return '#00a86b';
-            case 'error': return '#e46a76';
-            default: return '#888888'; // offline/unknown
-          }
-        },
-        renderMap() {
-          this.$nextTick(() => {
-            const container = document.getElementById('world-map');
-            if (!container) return;
-
-            if (!this.map) {
-              this.map = L.map('world-map', { zoomControl: true, worldCopyJump: true });
-            }
-
-            // Reset tile layer on theme change
-            if (this.tiles) {
-              this.map.removeLayer(this.tiles);
-            }
-            this.tiles = L.tileLayer(this.tileUrl(), { attribution: this.tileAttribution(), maxZoom: 19 });
-            this.tiles.addTo(this.map);
-
-            // Clear existing markers and cluster
-            if (this.markerCluster) {
-              this.map.removeLayer(this.markerCluster);
-              this.markerCluster = null;
-            }
-            for (const m of this.markers) {
-              if (this.map.hasLayer(m)) {
-                this.map.removeLayer(m);
-              }
-            }
-            this.markers = [];
-
-            if (this.nodes.length === 0) {
-              // Default view
-              this.map.setView([20, 0], 2);
-              return;
-            }
-
-            // Create marker cluster group
-            this.markerCluster = L.markerClusterGroup({
-              maxClusterRadius: 50,
-              spiderfyOnMaxZoom: true,
-              showCoverageOnHover: false,
-              zoomToBoundsOnClick: true,
-            });
-
-            const latlngs = [];
-            for (const n of this.nodes) {
-              const lat = parseFloat(n.latitude), lng = parseFloat(n.longitude);
-              if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                latlngs.push([lat, lng]);
-                const circle = L.circleMarker([lat, lng], {
-                  radius: 7,
-                  weight: 2,
-                  color: this.markerColor(n.status),
-                  fillColor: this.markerColor(n.status),
-                  fillOpacity: 0.85,
-                });
-                const statusInfo = n.status === 'online' 
-                  ? { color: '#52c41a', label: 'Online' }
-                  : n.status === 'error' 
-                  ? { color: '#faad14', label: 'Error' }
-                  : { color: '#ff4d4f', label: 'Offline' };
-                const popup = `<div style="min-width:200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-                  <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
-                    <strong style="font-size: 15px; color: #262626;">${this._escape(n.name || 'Unnamed Node')}</strong>
-                  </div>
-                  <div style="margin-bottom: 6px; display: flex; align-items: center;">
-                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Host:</span>
-                    <span style="color: #262626; font-family: 'Courier New', monospace;">${this._escape(n.host || 'N/A')}</span>
-                  </div>
-                  <div style="margin-bottom: 6px; display: flex; align-items: center;">
-                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Status:</span>
-                    <span style="color: ${statusInfo.color}; font-weight: 500; display: inline-flex; align-items: center;">
-                      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${statusInfo.color}; margin-right: 6px;"></span>
-                      ${statusInfo.label}
-                    </span>
-                  </div>
-                  ${n.city ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
-                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">City:</span>
-                    <span style="color: #262626;">${this._escape(n.city)}</span>
-                  </div>` : ''}
-                  ${n.country ? `<div style="margin-bottom: 6px; display: flex; align-items: center;">
-                    <span style="color: #8c8c8c; margin-right: 8px; min-width: 60px;">Country:</span>
-                    <span style="color: #262626;">${this._escape(n.country)}</span>
-                  </div>` : ''}
-                  <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-                    <div style="color: #8c8c8c; font-size: 11px; font-family: 'Courier New', monospace;">
-                      ${lat.toFixed(4)}, ${lng.toFixed(4)}
-                    </div>
-                  </div>
-                </div>`;
-                circle.bindPopup(popup);
-                this.markerCluster.addLayer(circle);
-                this.markers.push(circle);
-              }
-            }
-
-            // Add cluster group to map
-            if (this.markerCluster.getLayers().length > 0) {
-              this.map.addLayer(this.markerCluster);
-            }
-
-            if (latlngs.length) {
-              const bounds = L.latLngBounds(latlngs);
-              this.map.fitBounds(bounds.pad(0.2));
-            } else {
-              this.map.setView([20, 0], 2);
-            }
-          })
-        },
-        _escape(s){
-          return String(s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+        } catch (e) {
+          this.$message.error('Load failed');
         }
       },
-      computed: {
-        currentTheme() {
-          return this.themeSwitcher.currentTheme;
-        }
+      tileUrl() {
+        const isDark = this.themeSwitcher.isDarkTheme;
+        return isDark
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
       },
-      watch: {
-        currentTheme(){
-          // Re-render tiles to match theme
-          this.renderMap();
-        }
-      },
-      mounted(){
-        this.loadingStates.fetched = true;
-        const root = this.$el;
-        if (root && root.removeAttribute) {
-          root.removeAttribute('v-cloak');
-        }
-        if (root && root.style && root.style.display === 'none') {
-          root.style.display = '';
-        }
+      renderMap() {
         this.$nextTick(() => {
-          const el = this.$el;
-          if (el && el.removeAttribute) {
-            el.removeAttribute('v-cloak');
+          const container = document.getElementById('world-map');
+          if (!container) return;
+
+          if (!this.map) {
+            this.map = L.map('world-map', { zoomControl: true, worldCopyJump: true });
           }
-          if (el && el.style && el.style.display === 'none') {
-            el.style.display = '';
+
+          if (this.tiles) {
+            this.map.removeLayer(this.tiles);
+          }
+          this.tiles = L.tileLayer(this.tileUrl(), {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            maxZoom: 19
+          });
+          this.tiles.addTo(this.map);
+
+          if (this.markerCluster) {
+            this.map.removeLayer(this.markerCluster);
+            this.markerCluster = null;
+          }
+          for (const m of this.markers) {
+            if (this.map.hasLayer(m)) {
+              this.map.removeLayer(m);
+            }
+          }
+          this.markers = [];
+
+          if (this.nodes.length === 0) {
+            this.map.setView([20, 0], 2);
+            return;
+          }
+
+          this.markerCluster = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+          });
+
+          const latlngs = [];
+          for (const n of this.nodes) {
+            const lat = parseFloat(n.latitude), lng = parseFloat(n.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+              latlngs.push([lat, lng]);
+              const color = n.status === 'online' ? '#00a86b' : n.status === 'error' ? '#e46a76' : '#888888';
+              const circle = L.circleMarker([lat, lng], {
+                radius: 7,
+                weight: 2,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.85,
+              });
+              const popup = `<div style="min-width:200px;">
+                <div style="margin-bottom: 8px;"><strong>${this._escape(n.name || 'Unnamed')}</strong></div>
+                <div>Host: ${this._escape(n.host || 'N/A')}</div>
+                <div>Status: ${n.status || 'unknown'}</div>
+                ${n.city ? `<div>City: ${this._escape(n.city)}</div>` : ''}
+                ${n.country ? `<div>Country: ${this._escape(n.country)}</div>` : ''}
+              </div>`;
+              circle.bindPopup(popup);
+              this.markerCluster.addLayer(circle);
+              this.markers.push(circle);
+            }
+          }
+
+          if (this.markerCluster.getLayers().length > 0) {
+            this.map.addLayer(this.markerCluster);
+          }
+
+          if (latlngs.length) {
+            const bounds = L.latLngBounds(latlngs);
+            this.map.fitBounds(bounds.pad(0.2));
+          } else {
+            this.map.setView([20, 0], 2);
           }
         });
-        this.refresh();
+      },
+      _escape(s) {
+        return String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
       }
-    });
+    },
+    computed: {
+      currentTheme() {
+        return this.themeSwitcher.currentTheme;
+      }
+    },
+    watch: {
+      currentTheme() {
+        this.renderMap();
+      }
+    },
+    mounted() {
+      this.refresh();
+    }
+  });
 </script>
-
-<style>
-  .map-card.light .ant-card-body { background: #fff; }
-  .map-card.dark .ant-card-body { background: #0f172a; }
-  #world-map { width: 100%; height: calc(100vh - 220px); border-radius: 8px; }
-  .map-page .leaflet-tile { filter: contrast(1.05) saturate(0.95); }
-  .dark .map-page .leaflet-tile { filter: brightness(0.9) contrast(1.05) saturate(0.9); }
-</style>
-
 {{ template "page/body_end" .}}
