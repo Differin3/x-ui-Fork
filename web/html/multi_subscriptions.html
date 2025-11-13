@@ -51,14 +51,27 @@
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 <script>
+  // Fallback: remove v-cloak if Vue fails to initialize
+  function removeVCloak() {
+    const app = document.getElementById('app');
+    if (app) {
+      app.removeAttribute('v-cloak');
+      app.style.display = '';
+    }
+  }
+  
   if (typeof Vue === 'undefined') {
     console.error('Vue is not loaded');
+    removeVCloak();
   } else if (typeof MediaQueryMixin === 'undefined') {
     console.error('MediaQueryMixin is not loaded');
+    removeVCloak();
   } else if (typeof themeSwitcher === 'undefined') {
     console.error('themeSwitcher is not defined');
+    removeVCloak();
   } else {
-    new Vue({
+    try {
+      new Vue({
     delimiters: ['[[', ']]'],
     el: '#app',
     mixins: [MediaQueryMixin],
@@ -188,6 +201,10 @@
       this.refresh();
     }
   });
+    } catch (e) {
+      console.error('Vue initialization failed:', e);
+      removeVCloak();
+    }
   }
 </script>
 
