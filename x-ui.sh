@@ -769,7 +769,7 @@ install_firewall() {
         ufw allow ssh
         ufw allow http
         ufw allow https
-        ufw allow 2053/tcp #webPort
+        ufw allow 5050/tcp #webPort
         ufw allow 2096/tcp #subport
 
         # Enable the firewall
@@ -779,11 +779,11 @@ install_firewall() {
 
 open_ports() {
     # Prompt the user to enter the ports they want to open
-    read -p "Enter the ports you want to open (e.g. 80,443,2053 or range 400-500): " ports
+    read -p "Enter the ports you want to open (e.g. 80,443,5050 or range 400-500): " ports
 
     # Check if the input is valid
     if ! [[ $ports =~ ^([0-9]+|[0-9]+-[0-9]+)(,([0-9]+|[0-9]+-[0-9]+))*$ ]]; then
-        echo "Error: Invalid input. Please enter a comma-separated list of ports or a range of ports (e.g. 80,443,2053 or 400-500)." >&2
+        echo "Error: Invalid input. Please enter a comma-separated list of ports or a range of ports (e.g. 80,443,5050 or 400-500)." >&2
         exit 1
     fi
 
@@ -850,11 +850,11 @@ delete_ports() {
 
     elif [[ $choice -eq 2 ]]; then
         # Deleting by ports
-        read -p "Enter the ports you want to delete (e.g. 80,443,2053 or range 400-500): " ports
+        read -p "Enter the ports you want to delete (e.g. 80,443,5050 or range 400-500): " ports
 
         # Validate the input
         if ! [[ $ports =~ ^([0-9]+|[0-9]+-[0-9]+)(,([0-9]+|[0-9]+-[0-9]+))*$ ]]; then
-            echo "Error: Invalid input. Please enter a comma-separated list of ports or a range of ports (e.g. 80,443,2053 or 400-500)." >&2
+            echo "Error: Invalid input. Please enter a comma-separated list of ports or a range of ports (e.g. 80,443,5050 or 400-500)." >&2
             exit 1
         fi
 

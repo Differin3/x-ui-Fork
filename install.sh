@@ -98,16 +98,7 @@ config_after_install() {
             local config_username=$(gen_random_string 10)
             local config_password=$(gen_random_string 10)
 
-            read -rp "Would you like to customize the Panel Port settings? (If not, a random port will be applied) [y/n]: " config_confirm
-            if [[ "${config_confirm}" == "y" || "${config_confirm}" == "Y" ]]; then
-                read -rp "Please set up the panel port: " config_port
-                echo -e "${yellow}Your Panel Port is: ${config_port}${plain}"
-            else
-                local config_port=$(shuf -i 1024-62000 -n 1)
-                echo -e "${yellow}Generated random port: ${config_port}${plain}"
-            fi
-
-            /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
+            /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}" -webBasePath "${config_webBasePath}"
             # persist credentials for summary output
             echo "USERNAME=${config_username}" > "${creds_file}"
             echo "PASSWORD=${config_password}" >> "${creds_file}"
@@ -116,16 +107,15 @@ config_after_install() {
             echo -e "###############################################"
             echo -e "${green}Username: ${config_username}${plain}"
             echo -e "${green}Password: ${config_password}${plain}"
-            echo -e "${green}Port: ${config_port}${plain}"
             echo -e "${green}WebBasePath: ${config_webBasePath}${plain}"
-            echo -e "${green}Access URL: http://${server_ip}:${config_port}/${config_webBasePath}${plain}"
             echo -e "###############################################"
+            existing_webBasePath="${config_webBasePath}"
         else
             local config_webBasePath=$(gen_random_string 18)
             echo -e "${yellow}WebBasePath is missing or too short. Generating a new one...${plain}"
             /usr/local/x-ui/x-ui setting -webBasePath "${config_webBasePath}"
             echo -e "${green}New WebBasePath: ${config_webBasePath}${plain}"
-            echo -e "${green}Access URL: http://${server_ip}:${existing_port}/${config_webBasePath}${plain}"
+            existing_webBasePath="${config_webBasePath}"
         fi
     else
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
@@ -147,6 +137,40 @@ config_after_install() {
             echo -e "${green}Username, Password, and WebBasePath are properly set. Exiting...${plain}"
         fi
     fi
+
+    # Prompt for panel port selection
+    is_valid_port() {
+        [[ $1 =~ ^[0-9]+$ ]] && (( $1 >= 1 && $1 <= 65535 ))
+    }
+
+    local env_port=""
+    if [[ -n "${X_UI_PORT:-}" ]]; then
+        env_port="${X_UI_PORT}"
+    elif [[ -n "${PANEL_PORT:-}" ]]; then
+        env_port="${PANEL_PORT}"
+    fi
+
+    local default_port="${existing_port:-5050}"
+    if [[ -n "${env_port}" ]] && is_valid_port "${env_port}"; then
+        default_port="${env_port}"
+    fi
+
+    local config_port="${default_port}"
+    if [[ -t 0 ]]; then
+        echo -e ""
+        read -rp "Enter the panel port [default: ${default_port}]: " input_port
+        while [[ -n "${input_port}" ]] && ! is_valid_port "${input_port}"; do
+            read -rp "Invalid port. Please enter a number between 1 and 65535: " input_port
+        done
+        if [[ -n "${input_port}" ]]; then
+            config_port="${input_port}"
+        fi
+    fi
+    if ! is_valid_port "${config_port}"; then
+        config_port=5050
+    fi
+    /usr/local/x-ui/x-ui setting -port "${config_port}"
+    echo -e "${green}Panel port set to: ${config_port}${plain}"
 
     /usr/local/x-ui/x-ui migrate
 }

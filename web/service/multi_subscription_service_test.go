@@ -24,7 +24,7 @@ func TestMultiSubscriptionServiceValidation(t *testing.T) {
 	nodeSvc := &NodeService{}
 	multiSvc := &MultiSubscriptionService{nodeService: *nodeSvc}
 
-	node := &model.Node{Name: "node-valid", Host: "127.0.0.1", Port: 2053, Enable: true}
+	node := &model.Node{Name: "node-valid", Host: "127.0.0.1", Port: 5050, Enable: true}
 	if err := nodeSvc.AddNode(node); err != nil {
 		t.Fatalf("failed to add node: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestMultiSubscriptionServiceCRUD(t *testing.T) {
 	nodeSvc := &NodeService{}
 	multiSvc := &MultiSubscriptionService{nodeService: *nodeSvc}
 
-	node1 := &model.Node{Name: "node-1", Host: "n1", Port: 2053, Enable: true}
+	node1 := &model.Node{Name: "node-1", Host: "n1", Port: 5050, Enable: true}
 	node2 := &model.Node{Name: "node-2", Host: "n2", Port: 2054, Enable: true}
 	if err := nodeSvc.AddNode(node1); err != nil {
 		t.Fatalf("failed to add node1: %v", err)

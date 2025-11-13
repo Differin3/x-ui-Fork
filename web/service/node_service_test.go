@@ -36,7 +36,7 @@ func TestNodeServiceCRUD(t *testing.T) {
 	setupServiceTestDB(t)
 	svc := &NodeService{}
 
-	node := &model.Node{Name: "node-1", Host: "127.0.0.1", Port: 2053, Enable: true}
+	node := &model.Node{Name: "node-1", Host: "127.0.0.1", Port: 5050, Enable: true}
 	if err := svc.AddNode(node); err != nil {
 		t.Fatalf("AddNode failed: %v", err)
 	}

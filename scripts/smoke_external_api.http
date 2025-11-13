@@ -1,7 +1,7 @@
 ### External API Smoke Tests
 
 # Set your base URL and API key
-@base = http://localhost:2053
+@base = http://localhost:5050
 @key = TEST_EXTERNAL_KEY
 
 ### No key -> expect 401

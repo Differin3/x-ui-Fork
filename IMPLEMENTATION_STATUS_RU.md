@@ -150,7 +150,7 @@ POST /panel/api/nodes
 {
   "name": "Moscow Node",
   "host": "192.168.1.100",
-  "port": 2053,
+  "port": 5050,
   "apiKey": "your-api-key",
   "protocol": "https",
   "location": "Moscow",
@@ -171,7 +171,7 @@ Response: [
     "id": 1,
     "name": "Moscow Node",
     "host": "192.168.1.100",
-    "port": 2053,
+    "port": 5050,
     "status": "online",
     "latitude": 55.7558,
     "longitude": 37.6173,

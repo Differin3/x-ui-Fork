@@ -356,7 +356,7 @@ type NodeStats struct {
 {
   "name": "Moscow Node",
   "host": "192.168.1.100",
-  "port": 2053,
+  "port": 5050,
   "apiKey": "your-api-key",
   "protocol": "https",
   "location": "Moscow",

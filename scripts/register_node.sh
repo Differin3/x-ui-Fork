@@ -13,11 +13,11 @@ NC='\033[0m' # No Color
 
 # Default values
 MASTER_HOST=""
-MASTER_PORT="2053"
+MASTER_PORT="5050"
 MASTER_PROTOCOL="http"
 NODE_NAME=""
 NODE_HOST=""
-NODE_PORT="2053"
+NODE_PORT="5050"
 NODE_PROTOCOL="https"
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD=""
@@ -33,11 +33,11 @@ Register a remote 3x-ui node with the master panel.
 
 OPTIONS:
     -m, --master-host HOST        Master panel hostname or IP (required)
-    -p, --master-port PORT        Master panel port (default: 2053)
+    -p, --master-port PORT        Master panel port (default: 5050)
     -P, --master-protocol PROTO   Master panel protocol: http or https (default: http)
     -n, --node-name NAME          Node name (required)
     -h, --node-host HOST          Remote node hostname or IP (required)
-    -o, --node-port PORT          Remote node port (default: 2053)
+    -o, --node-port PORT          Remote node port (default: 5050)
     -O, --node-protocol PROTO     Remote node protocol: http or https (default: https)
     -u, --username USER            Master panel admin username (default: admin)
     -w, --password PASS            Master panel admin password (required)

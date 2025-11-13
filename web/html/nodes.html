@@ -90,7 +90,7 @@
       loadingTip: '{{ i18n "loading"}}',
       nodes: [],
       modals: { edit: { visible: false } },
-      form: { id:null, name:'', host:'', port:2053, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
+      form: { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true },
       v: { name:{}, host:{}, port:{}, protocol:{} },
       detectingLocation: false,
     },
@@ -112,7 +112,7 @@
           this.$message.error(this.$t('validation.loadFailed'));
         }
       },
-      openAdd(){ this.form = { id:null, name:'', host:'', port:2053, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
+      openAdd(){ this.form = { id:null, name:'', host:'', port:5050, protocol:'https', apiKey:'', location:'', country:'', city:'', latitude:null, longitude:null, remark:'', enable:true }; this.clearValidation(); this.modals.edit.visible=true; },
       openEdit(r){ this.form = Object.assign({}, r); this.clearValidation(); this.modals.edit.visible=true; },
       clearValidation(){ this.v = { name:{}, host:{}, port:{}, protocol:{} }; },
       validate(){

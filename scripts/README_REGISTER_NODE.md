@@ -77,11 +77,11 @@ brew install curl jq
 | Параметр | Короткий | Описание | Обязательный | По умолчанию |
 |----------|----------|----------|--------------|--------------|
 | `--master-host` | `-m` | Хост мастер-панели | Да | - |
-| `--master-port` | `-p` | Порт мастер-панели | Нет | 2053 |
+| `--master-port` | `-p` | Порт мастер-панели | Нет | 5050 |
 | `--master-protocol` | `-P` | Протокол мастер-панели (http/https) | Нет | http |
 | `--node-name` | `-n` | Имя ноды | Да | - |
 | `--node-host` | `-h` | Хост удаленной ноды | Да | - |
-| `--node-port` | `-o` | Порт удаленной ноды | Нет | 2053 |
+| `--node-port` | `-o` | Порт удаленной ноды | Нет | 5050 |
 | `--node-protocol` | `-O` | Протокол удаленной ноды (http/https) | Нет | https |
 | `--username` | `-u` | Имя пользователя мастер-панели | Нет | admin |
 | `--password` | `-w` | Пароль мастер-панели | Да | - |
@@ -171,22 +171,3 @@ sudo yum install curl jq
 
 - **Не храните пароли в скриптах** - используйте переменные окружения или файлы с ограниченными правами доступа
 - **Используйте HTTPS** - для продакшн окружений всегда используйте `--master-protocol https` и `--node-protocol https`
-- **Защищайте External API Key** - не передавайте ключ в открытом виде, используйте безопасные каналы связи
-
-## Пример с переменными окружения
-
-```bash
-#!/bin/bash
-
-export MASTER_HOST="master.example.com"
-export MASTER_PASSWORD="admin123"
-export EXTERNAL_API_KEY="your-secure-api-key"
-
-./scripts/register_node.sh \
-  -m "$MASTER_HOST" \
-  -n "Production Node" \
-  -h prod-node.example.com \
-  -w "$MASTER_PASSWORD" \
-  -k "$EXTERNAL_API_KEY"
-```
-
