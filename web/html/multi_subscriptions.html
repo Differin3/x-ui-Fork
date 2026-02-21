@@ -69,7 +69,7 @@
       <a-modal :visible="modals.edit.visible" :title='{{ i18n "pages.multiSubscriptions.title"}}' :footer="null" @cancel="modals.edit.visible=false">
         <a-form :label-col="{span:6}" :wrapper-col="{span:16}">
           <a-form-item :label='{{ i18n "pages.multiSubscriptions.name"}}' :validate-status="v.name.status" :help="v.name.help">
-            <a-input v-model="form.name" :placeholder='{{ i18n "pages.multiSubscriptions.name" || "Название"}}'/>
+            <a-input v-model="form.name" :placeholder='{{ i18n "pages.multiSubscriptions.name" }}'/>
           </a-form-item>
           <a-form-item :label='{{ i18n "pages.multiSubscriptions.subId"}}' :validate-status="v.subId.status" :help="v.subId.help">
             <a-input v-model="form.subId" :placeholder='{{ i18n "pages.multiSubscriptions.subIdPlaceholder"}}'/>
