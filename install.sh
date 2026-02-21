@@ -227,18 +227,18 @@ install_x-ui() {
     if [ $# == 0 ]; then
         # Try multiple methods to get latest version with timeouts
         echo -e "${yellow}Fetching latest version from releases...${plain}"
-        tag_version=$(curl -s --max-time 10 "https://api.github.com/repos/Differin3/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        tag_version=$(curl -s --max-time 10 "https://api.github.com/repos/GMNSA/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${yellow}Trying with IPv4...${plain}"
-            tag_version=$(curl -4 -s --max-time 10 "https://api.github.com/repos/Differin3/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            tag_version=$(curl -4 -s --max-time 10 "https://api.github.com/repos/GMNSA/x-ui-Fork/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         fi
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${yellow}Trying tags API...${plain}"
-            tag_version=$(curl -s --max-time 10 "https://api.github.com/repos/Differin3/x-ui-Fork/tags?per_page=1" 2>/dev/null | grep '"name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            tag_version=$(curl -s --max-time 10 "https://api.github.com/repos/GMNSA/x-ui-Fork/tags?per_page=1" 2>/dev/null | grep '"name":' | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
         fi
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${yellow}Trying releases page...${plain}"
-            tag_version=$(curl -s --max-time 10 "https://github.com/Differin3/x-ui-Fork/releases" 2>/dev/null | grep -oE 'releases/tag/v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's|releases/tag/||')
+            tag_version=$(curl -s --max-time 10 "https://github.com/GMNSA/x-ui-Fork/releases" 2>/dev/null | grep -oE 'releases/tag/v?[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's|releases/tag/||')
         fi
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${yellow}No releases found, will build from main branch...${plain}"
@@ -246,7 +246,7 @@ install_x-ui() {
             USE_BUILD_FROM_SOURCE=true
         else
             echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
-            wget --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+            wget --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/GMNSA/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
             if [[ $? -ne 0 ]]; then
                 echo -e "${yellow}Download failed, will build from main branch...${plain}"
                 tag_version="main"
@@ -266,7 +266,7 @@ install_x-ui() {
             exit 1
         fi
 
-        url="https://github.com/Differin3/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        url="https://github.com/GMNSA/x-ui-Fork/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
         echo -e "Beginning to install x-ui $1"
         wget --inet4-only -N -O /usr/local/x-ui-linux-$(arch).tar.gz ${url}
         if [[ $? -ne 0 ]]; then
@@ -274,7 +274,7 @@ install_x-ui() {
             exit 1
         fi
     fi
-    wget --inet4-only -O /usr/bin/x-ui-temp https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/x-ui.sh
+    wget --inet4-only -O /usr/bin/x-ui-temp https://raw.githubusercontent.com/GMNSA/x-ui-Fork/main/x-ui.sh
     if [[ $? -ne 0 ]]; then
         echo -e "${red}Failed to download x-ui.sh${plain}"
         exit 1
@@ -335,7 +335,7 @@ install_x-ui() {
         
         # Clone and build
         echo -e "${yellow}Cloning repository...${plain}"
-        git clone --depth 1 https://github.com/Differin3/x-ui-Fork.git x-ui-source
+        git clone --depth 1 https://github.com/GMNSA/x-ui-Fork.git x-ui-source
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Failed to clone repository${plain}"
             exit 1
@@ -439,7 +439,7 @@ install_x-ui() {
     config_after_install
 
     if [[ $release == "alpine" ]]; then
-        wget --inet4-only -O /etc/init.d/x-ui https://raw.githubusercontent.com/Differin3/x-ui-Fork/main/x-ui.rc
+        wget --inet4-only -O /etc/init.d/x-ui https://raw.githubusercontent.com/GMNSA/x-ui-Fork/main/x-ui.rc
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Failed to download x-ui.rc${plain}"
             exit 1
